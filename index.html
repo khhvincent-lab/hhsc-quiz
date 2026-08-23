@@ -19,6 +19,10 @@
 
 
 <style>
+        .hidden {
+            display: none !important;
+        }
+
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
         
         :root {
@@ -554,30 +558,30 @@
                     </div>
                 </div>
 
-                <!-- 2. 大考五標 (頂/前/均/後/底) 數據看板 -->
+                <!-- 2. 大考五標 (頂/前/均/後/底) 數據看板 (純淨無icon版) -->
                 <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="fiveStandardsContainer">
-                    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-3.5 rounded-2xl border border-indigo-200 text-center">
-                        <span class="text-xs font-black text-indigo-700 block">🏆 頂標 (前 12%)</span>
+                    <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 text-center">
+                        <span class="text-xs font-black text-indigo-700 block tracking-wider">頂標 (前 12%)</span>
                         <span class="text-2xl font-black text-indigo-900 mt-1 block" id="valTopStandard">--</span>
                         <span class="text-[10px] text-indigo-500 font-medium mt-0.5 block" id="subTopStandard">PR 88 門檻</span>
                     </div>
-                    <div class="bg-gradient-to-br from-blue-50 to-blue-100/50 p-3.5 rounded-2xl border border-blue-200 text-center">
-                        <span class="text-xs font-black text-blue-700 block">🎯 前標 (前 25%)</span>
+                    <div class="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 text-center">
+                        <span class="text-xs font-black text-blue-700 block tracking-wider">前標 (前 25%)</span>
                         <span class="text-2xl font-black text-blue-900 mt-1 block" id="valHighStandard">--</span>
                         <span class="text-[10px] text-blue-500 font-medium mt-0.5 block" id="subHighStandard">PR 75 門檻</span>
                     </div>
-                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-3.5 rounded-2xl border border-emerald-200 text-center">
-                        <span class="text-xs font-black text-emerald-700 block">⚖️ 均標 (前 50%)</span>
+                    <div class="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center">
+                        <span class="text-xs font-black text-emerald-700 block tracking-wider">均標 (前 50%)</span>
                         <span class="text-2xl font-black text-emerald-900 mt-1 block" id="valAvgStandard">--</span>
                         <span class="text-[10px] text-emerald-500 font-medium mt-0.5 block" id="subAvgStandard">PR 50 中位數</span>
                     </div>
-                    <div class="bg-gradient-to-br from-amber-50 to-amber-100/50 p-3.5 rounded-2xl border border-amber-200 text-center">
-                        <span class="text-xs font-black text-amber-700 block">🛡️ 後標 (前 75%)</span>
+                    <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-center">
+                        <span class="text-xs font-black text-amber-700 block tracking-wider">後標 (前 75%)</span>
                         <span class="text-2xl font-black text-amber-900 mt-1 block" id="valLowStandard">--</span>
                         <span class="text-[10px] text-amber-500 font-medium mt-0.5 block" id="subLowStandard">PR 25 門檻</span>
                     </div>
-                    <div class="bg-gradient-to-br from-rose-50 to-rose-100/50 p-3.5 rounded-2xl border border-rose-200 text-center col-span-2 sm:col-span-1">
-                        <span class="text-xs font-black text-rose-700 block">🧱 底標 (前 88%)</span>
+                    <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200 text-center col-span-2 sm:col-span-1">
+                        <span class="text-xs font-black text-rose-700 block tracking-wider">底標 (前 88%)</span>
                         <span class="text-2xl font-black text-rose-900 mt-1 block" id="valBottomStandard">--</span>
                         <span class="text-[10px] text-rose-500 font-medium mt-0.5 block" id="subBottomStandard">PR 12 門檻</span>
                     </div>
@@ -593,6 +597,73 @@
                     </div>
                     <div class="w-full h-64">
                         <canvas id="scoreDistributionCanvas"></canvas>
+                    </div>
+                </div>
+
+
+                <!-- 2.5 試題痛點與雷區深度診斷看板 (分析哪題錯誤率最高、最多人答錯、思考最久) -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-slate-100">
+                        <div>
+                            <h3 class="font-black text-slate-900 text-sm md:text-base flex items-center gap-2">
+                                <i class="fa-solid fa-fire-flame-curved text-rose-500"></i> 🎯 本份試卷「試題雷區與高頻錯誤」深度診斷分析
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">即時統計全班各題答錯人數、錯誤率排行、平均思考耗時與最常見誘答陷阱選項，精確鎖定課堂檢討重點！</p>
+                        </div>
+                        <span class="text-xs font-bold px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full shrink-0" id="painpointQuizTag">
+                            考卷診斷中
+                        </span>
+                    </div>
+
+                    <!-- 三大核心痛點快速指標卡 -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200 space-y-1">
+                            <div class="flex items-center justify-between text-xs font-black text-rose-800">
+                                <span>最高錯誤率試題 (必重講)</span>
+                                <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                            </div>
+                            <div class="text-lg font-black text-rose-950" id="metricHighestErrorQ">第 -- 題</div>
+                            <p class="text-xs text-rose-700" id="metricHighestErrorDesc">全班錯誤率：--% (共 -- 人答錯)</p>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-1">
+                            <div class="flex items-center justify-between text-xs font-black text-amber-800">
+                                <span>平均思考最久試題</span>
+                                <i class="fa-regular fa-clock text-amber-600"></i>
+                            </div>
+                            <div class="text-lg font-black text-amber-950" id="metricLongestTimeQ">第 -- 題</div>
+                            <p class="text-xs text-amber-700" id="metricLongestTimeDesc">平均每人停留：-- 秒 (運算/觀念卡關)</p>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-1">
+                            <div class="flex items-center justify-between text-xs font-black text-purple-800">
+                                <span>最多人猶豫/改答案題</span>
+                                <i class="fa-solid fa-shuffle text-purple-600"></i>
+                            </div>
+                            <div class="text-lg font-black text-purple-950" id="metricMostRevisedQ">第 -- 題</div>
+                            <p class="text-xs text-purple-700" id="metricMostRevisedDesc">共產生 -- 次修改 (選項誘答力強)</p>
+                        </div>
+                    </div>
+
+                    <!-- 全卷各題正答率、錯誤率、平均停留時間與錯誤盲點清單 -->
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 text-center w-14">題號</th>
+                                    <th class="p-3">題目精簡預覽與觀念指標</th>
+                                    <th class="p-3 text-center w-28">全班正答率</th>
+                                    <th class="p-3 text-center w-24">錯誤率</th>
+                                    <th class="p-3 text-center w-24">答錯人數</th>
+                                    <th class="p-3 text-center w-24">平均思考</th>
+                                    <th class="p-3 text-center w-36">最常誤選陷阱</th>
+                                    <th class="p-3 text-center w-24">課堂建議</th>
+                                </tr>
+                            </thead>
+                            <tbody id="questionAnalyticsTbody" class="divide-y divide-slate-100 font-medium">
+                                <!-- JS 動態生成各題診斷數據 -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -1157,8 +1228,7 @@
         let cachedSubs = null;
         try { cachedSubs = JSON.parse(localStorage.getItem('hhsc_quiz_subs_v17')); } catch(e) {}
         let studentSubmissionsDB = cachedSubs || [];
-        let activeResultsFilterGrade = 'all'; // 數據庫篩選班級
-        let activeResultsFilterQuizId = 'all'; // 數據庫篩選特定考卷
+
         let distChartInstance = null; // 組距圖實例
 
         // ================= 學生端即時狀態 =================
@@ -1313,23 +1383,29 @@
 
 
         // ================= 0. 學生入口頁面邏輯 =================
-        function switchToStudentPortal() {
+                function switchToStudentPortal() {
             clearInterval(timerInterval);
             clearInterval(currentQTimerInterval);
 
-            document.getElementById('dashboardView').classList.add('hidden');
-            document.getElementById('teacherEditorView').classList.add('hidden');
-            document.getElementById('instructionsView').classList.add('hidden');
-            document.getElementById('studentView').classList.add('hidden');
-            document.getElementById('resultView').classList.add('hidden');
-            document.getElementById('studentPortalView').classList.remove('hidden');
+            const vDash = document.getElementById('dashboardView'); if (vDash) vDash.classList.add('hidden');
+            const vEdit = document.getElementById('teacherEditorView'); if (vEdit) vEdit.classList.add('hidden');
+            const vInst = document.getElementById('instructionsView'); if (vInst) vInst.classList.add('hidden');
+            const vStud = document.getElementById('studentView'); if (vStud) vStud.classList.add('hidden');
+            const vRes = document.getElementById('resultView'); if (vRes) vRes.classList.add('hidden');
+            const vPortal = document.getElementById('studentPortalView'); if (vPortal) vPortal.classList.remove('hidden');
 
-            if (!isStudentOnlyMode) {
-                document.getElementById('btnGoStudentPortal').classList.add('hidden');
-                document.getElementById('btnGoAdminDashboard').classList.remove('hidden');
+            const btnExit = document.getElementById('btnNavExitAdmin');
+            if (btnExit) btnExit.classList.add('hidden');
+
+            const titleEl = document.getElementById('headerSystemTitle');
+            if (titleEl) titleEl.innerText = SYSTEM_CONFIGS.headerTitle;
+            
+            const badgeEl = document.getElementById('systemStatusBadge');
+            if (badgeEl) {
+                badgeEl.innerText = "線上小考專用平台";
+                badgeEl.className = "text-xs text-slate-500 font-medium";
             }
 
-            document.getElementById('headerSystemTitle').innerText = SYSTEM_CONFIGS.headerTitle;
             selectStudentGrade(studentSelectedGrade);
         }
 
@@ -1569,24 +1645,28 @@
             }
         }
 
-        function switchToDashboard() {
+                function switchToDashboard() {
             clearInterval(timerInterval);
             clearInterval(currentQTimerInterval);
 
-            document.getElementById('studentPortalView').classList.add('hidden');
-            document.getElementById('instructionsView').classList.add('hidden');
-            document.getElementById('teacherEditorView').classList.add('hidden');
-            document.getElementById('studentView').classList.add('hidden');
-            document.getElementById('resultView').classList.add('hidden');
-            document.getElementById('dashboardView').classList.remove('hidden');
+            const vPortal = document.getElementById('studentPortalView'); if (vPortal) vPortal.classList.add('hidden');
+            const vInst = document.getElementById('instructionsView'); if (vInst) vInst.classList.add('hidden');
+            const vEdit = document.getElementById('teacherEditorView'); if (vEdit) vEdit.classList.add('hidden');
+            const vStud = document.getElementById('studentView'); if (vStud) vStud.classList.add('hidden');
+            const vRes = document.getElementById('resultView'); if (vRes) vRes.classList.add('hidden');
+            const vDash = document.getElementById('dashboardView'); if (vDash) vDash.classList.remove('hidden');
 
-            document.getElementById('adminHeaderControls').classList.remove('hidden');
-            document.getElementById('btnGoStudentPortal').classList.remove('hidden');
-            document.getElementById('btnGoAdminDashboard').classList.add('hidden');
+            const btnExit = document.getElementById('btnNavExitAdmin');
+            if (btnExit) btnExit.classList.remove('hidden');
 
-            document.getElementById('headerSystemTitle').innerText = SYSTEM_CONFIGS.headerTitle;
-            document.getElementById('systemStatusBadge').innerText = "模式：管理者後台";
-            document.getElementById('systemStatusBadge').className = "text-xs text-slate-500 font-medium";
+            const titleEl = document.getElementById('headerSystemTitle');
+            if (titleEl) titleEl.innerText = SYSTEM_CONFIGS.headerTitle;
+
+            const badgeEl = document.getElementById('systemStatusBadge');
+            if (badgeEl) {
+                badgeEl.innerText = "模式：老師管理後台";
+                badgeEl.className = "text-xs text-indigo-600 font-semibold";
+            }
 
             renderDashboard();
         }
@@ -1697,18 +1777,24 @@
 
         
         // ================= 數據庫班級/考卷雙重篩選與五標計算 =================
+        // ================= 班級獨立篩選、考卷切換與各題痛點深度診斷模組 =================
+        let activeResultsFilterGrade = 'g1'; // 預設獨立查看高一班，不設全部班級
+        let activeResultsFilterQuizId = '';
+
         function filterResultsGrade(grade) {
             activeResultsFilterGrade = grade;
-            activeResultsFilterQuizId = 'all'; // 切換班級時重設考卷篩選為全部
-            ['all', 'g1', 'g2', 'g3'].forEach(g => {
+            activeResultsFilterQuizId = ''; // 切換班級時重設考卷為該班第一張
+
+            ['g1', 'g2', 'g3'].forEach(g => {
                 const btn = document.getElementById(`res-filter-${g}`);
                 if (!btn) return;
                 if (g === grade) {
-                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-sm";
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-sm flex items-center gap-1.5";
                 } else {
-                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200";
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5";
                 }
             });
+
             updateQuizFilterDropdown();
             renderSubmissionsTable();
             generateFiveStandards();
@@ -1720,48 +1806,52 @@
             generateFiveStandards();
         }
 
-        // 更新考卷下拉選單內容 (根據目前選取的班級動態載入考卷清單)
+        // 更新考卷下拉選單內容 (嚴格過濾當前選定班級的考卷)
         function updateQuizFilterDropdown() {
             const select = document.getElementById('resultsQuizFilterSelect');
             if (!select) return;
-            select.innerHTML = '<option value="all">📊 全部考卷 (綜合)</option>';
+            select.innerHTML = '';
 
             // 找出符合目前班級的考卷
-            let relevantQuizzes = allQuizzes;
-            if (activeResultsFilterGrade !== 'all') {
-                relevantQuizzes = allQuizzes.filter(q => q.grade === activeResultsFilterGrade);
+            const classQuizzes = allQuizzes.filter(q => q.grade === activeResultsFilterGrade);
+
+            if (classQuizzes.length === 0) {
+                select.innerHTML = '<option value="">本班級尚無建立考卷</option>';
+                activeResultsFilterQuizId = '';
+                return;
             }
 
-            relevantQuizzes.forEach(quiz => {
+            // 如果目前沒有選中或選中的考卷不屬於該班，預設選取本班第一張考卷
+            if (!classQuizzes.some(q => q.id === activeResultsFilterQuizId)) {
+                activeResultsFilterQuizId = classQuizzes[0].id;
+            }
+
+            classQuizzes.forEach(quiz => {
                 const opt = document.createElement('option');
                 opt.value = quiz.id;
-                opt.innerText = quiz.title;
+                opt.innerText = `${quiz.title} (${quiz.questions.length} 題)`;
                 if (quiz.id === activeResultsFilterQuizId) opt.selected = true;
                 select.appendChild(opt);
             });
         }
 
-        // 計算並生成五標與成績組距圖 (支援依據特定考卷獨立計算)
+        // 計算並生成五標、組距圖與各題痛點診斷
         function generateFiveStandards() {
-            let filtered = studentSubmissionsDB;
+            // 嚴格篩選當前班級的繳卷紀錄
+            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
             
-            // 班級篩選
-            if (activeResultsFilterGrade !== 'all') {
-                filtered = filtered.filter(s => s.grade === activeResultsFilterGrade);
-            }
-
-            // 特定考卷篩選
-            if (activeResultsFilterQuizId !== 'all') {
+            // 若有選定特定考卷，再篩選該份考卷
+            if (activeResultsFilterQuizId) {
                 filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
             }
 
-            // 更新樣本人數與考卷標題指示
-            let quizTitleTag = "";
-            if (activeResultsFilterQuizId !== 'all') {
-                const currentQuiz = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
-                if (currentQuiz) quizTitleTag = `【${currentQuiz.title}】`;
-            }
+            // 取得目前選定的考卷物件
+            const currentQuiz = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
+            const quizTitleTag = currentQuiz ? `【${currentQuiz.title}】` : `【${getGradeName(activeResultsFilterGrade)}】`;
+
             document.getElementById('chartSampleCountTag').innerText = `${quizTitleTag} 樣本人數：${filtered.length} 人`;
+            const painTag = document.getElementById('painpointQuizTag');
+            if (painTag) painTag.innerText = currentQuiz ? `${currentQuiz.title} (共 ${filtered.length} 人應試)` : "未選擇特定考卷";
 
             if (filtered.length === 0) {
                 document.getElementById('valTopStandard').innerText = "--";
@@ -1770,15 +1860,16 @@
                 document.getElementById('valLowStandard').innerText = "--";
                 document.getElementById('valBottomStandard').innerText = "--";
                 renderDistributionChart([0, 0, 0, 0, 0]);
+                renderEmptyPainpoints(currentQuiz);
                 return;
             }
 
-            // 取得該份考卷（或選定範圍）所有學生的百分制成績 (0~100 分)
+            // 取得百分制成績 (0~100 分)
             const scores = filtered.map(s => {
                 const earned = s.score || 0;
                 const possible = s.totalQuestions || 100;
                 return Math.round((earned / possible) * 100);
-            }).sort((a, b) => a - b); // 由低到高排序
+            }).sort((a, b) => a - b);
 
             const N = scores.length;
             function getPercentile(p) {
@@ -1790,7 +1881,7 @@
                 return Math.round(scores[lower] * (1 - weight) + scores[upper] * weight);
             }
 
-            // 大考五標標準定義 (教育部標準)
+            // 大考五標標準
             const topStd = getPercentile(88);
             const highStd = getPercentile(75);
             const avgStd = getPercentile(50);
@@ -1803,7 +1894,7 @@
             document.getElementById('valLowStandard').innerText = `${lowStd} 分`;
             document.getElementById('valBottomStandard').innerText = `${bottomStd} 分`;
 
-            // 計算 5 個純淨成績組距 (移除括號文字)
+            // 計算莫蘭迪組距
             const bins = [0, 0, 0, 0, 0];
             scores.forEach(score => {
                 if (score < 60) bins[0]++;
@@ -1814,6 +1905,194 @@
             });
 
             renderDistributionChart(bins);
+
+            // 執行各題試題痛點深度診斷分析！
+            analyzeQuestionPainpoints(currentQuiz, filtered);
+        }
+
+        // ================= 核心分析演算法：各題試題雷區與高頻錯誤深度診斷 =================
+        function analyzeQuestionPainpoints(quiz, submissions) {
+            const tbody = document.getElementById('questionAnalyticsTbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!quiz || !quiz.questions || quiz.questions.length === 0 || submissions.length === 0) {
+                renderEmptyPainpoints(quiz);
+                return;
+            }
+
+            const totalStudents = submissions.length;
+            const optLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+            // 統計每題的各項深入數據
+            const qStats = quiz.questions.map((q, qIdx) => {
+                let correctCount = 0;
+                let wrongCount = 0;
+                let totalTimeSpent = 0;
+                let revisionCount = 0;
+                const optionPickCount = {};
+                q.options.forEach((_, optI) => { optionPickCount[optI] = 0; });
+
+                submissions.forEach(sub => {
+                    const userAns = sub.studentAnswers ? (sub.studentAnswers[qIdx] || []) : [];
+                    const timeSpent = sub.questionTimeSpent ? (sub.questionTimeSpent[qIdx] || 0) : 0;
+                    totalTimeSpent += timeSpent;
+
+                    // 判斷是否全對
+                    const isCorrect = (q.correctAnswers.length === userAns.length) && q.correctAnswers.every((val, i) => val === userAns[i]);
+                    if (isCorrect) {
+                        correctCount++;
+                    } else {
+                        wrongCount++;
+                    }
+
+                    // 統計各選項被勾選次數
+                    userAns.forEach(pickedOpt => {
+                        if (optionPickCount[pickedOpt] !== undefined) {
+                            optionPickCount[pickedOpt]++;
+                        }
+                    });
+
+                    // 統計修改次數
+                    if (sub.changeHistoryLogs) {
+                        const logs = sub.changeHistoryLogs.filter(l => l.qIndex === qIdx);
+                        revisionCount += logs.length;
+                    }
+                });
+
+                const errorRate = Math.round((wrongCount / totalStudents) * 100);
+                const correctRate = 100 - errorRate;
+                const avgTime = Math.round(totalTimeSpent / totalStudents);
+
+                // 找出最多人誤選的錯誤選項 (排除掉標準答案)
+                let maxWrongOpt = null;
+                let maxWrongOptCount = 0;
+                Object.keys(optionPickCount).forEach(optI => {
+                    const idxNum = parseInt(optI);
+                    if (!q.correctAnswers.includes(idxNum)) {
+                        if (optionPickCount[idxNum] > maxWrongOptCount) {
+                            maxWrongOptCount = optionPickCount[idxNum];
+                            maxWrongOpt = idxNum;
+                        }
+                    }
+                });
+
+                let trapSummary = "無顯著誘答";
+                if (maxWrongOpt !== null && maxWrongOptCount > 0) {
+                    const trapPct = Math.round((maxWrongOptCount / totalStudents) * 100);
+                    trapSummary = `<span class="text-rose-600 font-bold">誤選 ${optLabels[maxWrongOpt]} (${trapPct}%人)</span>`;
+                }
+
+                return {
+                    qIndex: qIdx,
+                    qNumber: qIdx + 1,
+                    question: q,
+                    correctCount,
+                    wrongCount,
+                    errorRate,
+                    correctRate,
+                    avgTime,
+                    revisionCount,
+                    trapSummary
+                };
+            });
+
+            // 1. 找出三大痛點試題
+            // 最高錯誤率試題
+            const highestError = [...qStats].sort((a, b) => b.errorRate - a.errorRate)[0];
+            // 平均耗時最久試題
+            const longestTime = [...qStats].sort((a, b) => b.avgTime - a.avgTime)[0];
+            // 最多人修改/猶豫試題
+            const mostRevised = [...qStats].sort((a, b) => b.revisionCount - a.revisionCount)[0];
+
+            if (highestError) {
+                document.getElementById('metricHighestErrorQ').innerText = `第 ${highestError.qNumber} 題 (${highestError.question.category || '觀念'})`;
+                document.getElementById('metricHighestErrorDesc').innerText = `全班錯誤率：${highestError.errorRate}% (共 ${highestError.wrongCount}/${totalStudents} 人答錯)`;
+            }
+
+            if (longestTime) {
+                document.getElementById('metricLongestTimeQ').innerText = `第 ${longestTime.qNumber} 題 (${longestTime.question.category || '計算'})`;
+                document.getElementById('metricLongestTimeDesc').innerText = `平均思考：${longestTime.avgTime} 秒/人 (易卡關)`;
+            }
+
+            if (mostRevised) {
+                document.getElementById('metricMostRevisedQ').innerText = `第 ${mostRevised.qNumber} 題 (${mostRevised.question.category || '觀念'})`;
+                document.getElementById('metricMostRevisedDesc').innerText = `修改歷程：共 ${mostRevised.revisionCount} 次猶豫改選`;
+            }
+
+            // 2. 渲染各題詳細痛點診斷清單
+            qStats.forEach(stat => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+
+                // 課堂建議標籤
+                let adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">✓ 掌握良好</span>`;
+                let rowBgClass = "";
+                if (stat.errorRate >= 50) {
+                    adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 animate-pulse">🚨 建議必重講</span>`;
+                    rowBgClass = "bg-rose-50/20";
+                } else if (stat.errorRate >= 30) {
+                    adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">⚠️ 重點提示</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-bold font-mono ${rowBgClass}">Q${stat.qNumber}</td>
+                    <td class="p-3">
+                        <div class="space-y-1">
+                            <div class="font-bold text-slate-800 line-clamp-1">${escapeHtml(stat.question.text)}</div>
+                            <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                                <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-bold">${stat.question.category || '觀念'}</span>
+                                <span class="text-amber-500 font-bold">${'⭐'.repeat(stat.question.star || 3)}</span>
+                                <span class="text-indigo-600 font-medium">維度：${stat.question.skill || '綜合'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="w-full bg-slate-200 rounded-full h-2 max-w-[80px] mx-auto overflow-hidden">
+                            <div class="bg-emerald-500 h-2 rounded-full" style="width: ${stat.correctRate}%"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-emerald-700 mt-0.5 block">${stat.correctRate}% 正確</span>
+                    </td>
+                    <td class="p-3 text-center">
+                        <span class="font-black text-xs ${stat.errorRate >= 50 ? 'text-rose-600' : stat.errorRate >= 30 ? 'text-amber-600' : 'text-slate-600'}">
+                            ${stat.errorRate}%
+                        </span>
+                    </td>
+                    <td class="p-3 text-center font-bold text-slate-700">
+                        ${stat.wrongCount} <span class="text-slate-400 font-normal">/ ${totalStudents}人</span>
+                    </td>
+                    <td class="p-3 text-center font-mono font-bold text-slate-600">
+                        ${stat.avgTime} 秒
+                    </td>
+                    <td class="p-3 text-center text-xs">
+                        ${stat.trapSummary}
+                    </td>
+                    <td class="p-3 text-center whitespace-nowrap">
+                        ${adviceBadge}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderEmptyPainpoints(quiz) {
+            const tbody = document.getElementById('questionAnalyticsTbody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-8 text-slate-400 font-bold bg-slate-50/50">
+                            <i class="fa-solid fa-inbox text-2xl text-slate-300 block mb-1"></i>
+                            本份考卷目前尚無足夠的作答樣本可進行各題痛點診斷分析
+                        </td>
+                    </tr>
+                `;
+            }
+            document.getElementById('metricHighestErrorQ').innerText = "第 -- 題";
+            document.getElementById('metricHighestErrorDesc').innerText = "全班錯誤率：--%";
+            document.getElementById('metricLongestTimeQ').innerText = "第 -- 題";
+            document.getElementById('metricLongestTimeDesc').innerText = "平均思考：-- 秒";
+            document.getElementById('metricMostRevisedQ').innerText = "第 -- 題";
+            document.getElementById('metricMostRevisedDesc').innerText = "修改歷程：-- 次";
         }
 
         // 渲染組距直方長條圖 (移除括號文字，保持乾淨簡約)
@@ -1883,21 +2162,22 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            // 更新各班級人數計數標籤
-            document.getElementById('count-filter-all').innerText = studentSubmissionsDB.length;
-            document.getElementById('count-filter-g1').innerText = studentSubmissionsDB.filter(s => s.grade === 'g1').length;
-            document.getElementById('count-filter-g2').innerText = studentSubmissionsDB.filter(s => s.grade === 'g2').length;
-            document.getElementById('count-filter-g3').innerText = studentSubmissionsDB.filter(s => s.grade === 'g3').length;
+            // 更新各班級獨立人數計數標籤
+            const g1Count = studentSubmissionsDB.filter(s => s.grade === 'g1').length;
+            const g2Count = studentSubmissionsDB.filter(s => s.grade === 'g2').length;
+            const g3Count = studentSubmissionsDB.filter(s => s.grade === 'g3').length;
 
-            document.getElementById('label-filter-g1').innerText = getGradeName('g1');
-            document.getElementById('label-filter-g2').innerText = getGradeName('g2');
-            document.getElementById('label-filter-g3').innerText = getGradeName('g3');
+            const elG1 = document.getElementById('count-filter-g1'); if (elG1) elG1.innerText = g1Count;
+            const elG2 = document.getElementById('count-filter-g2'); if (elG2) elG2.innerText = g2Count;
+            const elG3 = document.getElementById('count-filter-g3'); if (elG3) elG3.innerText = g3Count;
 
-            let filtered = studentSubmissionsDB;
-            if (activeResultsFilterGrade !== 'all') {
-                filtered = filtered.filter(s => s.grade === activeResultsFilterGrade);
-            }
-            if (activeResultsFilterQuizId !== 'all') {
+            const lblG1 = document.getElementById('label-filter-g1'); if (lblG1) lblG1.innerText = getGradeName('g1');
+            const lblG2 = document.getElementById('label-filter-g2'); if (lblG2) lblG2.innerText = getGradeName('g2');
+            const lblG3 = document.getElementById('label-filter-g3'); if (lblG3) lblG3.innerText = getGradeName('g3');
+
+            // 嚴格過濾當前選定班級
+            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
+            if (activeResultsFilterQuizId) {
                 filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
             }
 
@@ -2067,8 +2347,11 @@
                     : '<div class="text-slate-400">本場考試無任何修改答案紀錄，答題果斷。</div>';
 
                 footerActions.innerHTML = `
-                    <button onclick="switchToDashboard(); selectAdminTab('results');" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> 返回學生作答數據庫
+                    <button onclick="exportStudentResultPDF()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-100 transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-base"></i> 下載 / 匯出此考生診斷報表 (PDF)
+                    </button>
+                    <button onclick="switchToDashboard(); selectAdminTab('results');" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> 返回學生作答數據庫
                     </button>
                 `;
             } else {
@@ -2225,12 +2508,9 @@
         let anonChartInstance = null;
 
         function openAnonymousReportModal() {
-            let filtered = studentSubmissionsDB;
+            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
 
-            if (activeResultsFilterGrade !== 'all') {
-                filtered = filtered.filter(s => s.grade === activeResultsFilterGrade);
-            }
-            if (activeResultsFilterQuizId !== 'all') {
+            if (activeResultsFilterQuizId) {
                 filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
             }
 
@@ -2320,11 +2600,11 @@
                 // 判斷五標落點標籤
                 let rankTier = "後標段";
                 let tierBadge = "bg-amber-100 text-amber-800";
-                if (pct >= topStd) { rankTier = "🏆 頂標段"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
-                else if (pct >= highStd) { rankTier = "🎯 前標段"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
-                else if (pct >= avgStd) { rankTier = "⚖️ 均標段"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
-                else if (pct >= lowStd) { rankTier = "🛡️ 後標段"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
-                else { rankTier = "🧱 底標段"; tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold"; }
+                if (pct >= topStd) { rankTier = "頂標段"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
+                else if (pct >= highStd) { rankTier = "前標段"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
+                else if (pct >= avgStd) { rankTier = "均標段"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
+                else if (pct >= lowStd) { rankTier = "後標段"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
+                else { rankTier = "底標段"; tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold"; }
 
                 const tr = document.createElement('tr');
                 tr.className = rank <= 3 ? "bg-amber-50/40 font-bold" : "hover:bg-slate-50";
@@ -3746,27 +4026,27 @@
                     </h4>
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                         <div class="p-3 rounded-2xl bg-[#E8EEF5] border border-[#BACCDD] text-center">
-                            <span class="text-xs font-black text-[#4A647A] block">🏆 頂標 (前 12%)</span>
+                            <span class="text-xs font-black text-[#4A647A] block tracking-wider">頂標 (前 12%)</span>
                             <span class="text-xl font-black text-[#2A3E4E] mt-0.5 block" id="anonValTop">--</span>
                             <span class="text-[10px] text-[#6E889D] block">PR 88 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#EAF2EB] border border-[#BBD4BE] text-center">
-                            <span class="text-xs font-black text-[#45694C] block">🎯 前標 (前 25%)</span>
+                            <span class="text-xs font-black text-[#45694C] block tracking-wider">前標 (前 25%)</span>
                             <span class="text-xl font-black text-[#233D29] mt-0.5 block" id="anonValHigh">--</span>
                             <span class="text-[10px] text-[#698E70] block">PR 75 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#F7F1E6] border border-[#DFCEAF] text-center">
-                            <span class="text-xs font-black text-[#7A5F35] block">⚖️ 均標 (前 50%)</span>
+                            <span class="text-xs font-black text-[#7A5F35] block tracking-wider">均標 (前 50%)</span>
                             <span class="text-xl font-black text-[#4A371B] mt-0.5 block" id="anonValAvg">--</span>
                             <span class="text-[10px] text-[#9A8158] block">PR 50 中位數</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#EFEAF4] border border-[#C6B7D5] text-center">
-                            <span class="text-xs font-black text-[#5C4A6F] block">🛡️ 後標 (前 75%)</span>
+                            <span class="text-xs font-black text-[#5C4A6F] block tracking-wider">後標 (前 75%)</span>
                             <span class="text-xl font-black text-[#362746] mt-0.5 block" id="anonValLow">--</span>
                             <span class="text-[10px] text-[#806E92] block">PR 25 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#F8ECEA] border border-[#DEC0BA] text-center col-span-2 sm:col-span-1">
-                            <span class="text-xs font-black text-[#854F46] block">🧱 底標 (前 88%)</span>
+                            <span class="text-xs font-black text-[#854F46] block tracking-wider">底標 (前 88%)</span>
                             <span class="text-xl font-black text-[#53261F] mt-0.5 block" id="anonValBottom">--</span>
                             <span class="text-[10px] text-[#9D6860] block">PR 12 門檻</span>
                         </div>
