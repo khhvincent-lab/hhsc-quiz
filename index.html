@@ -10,12 +10,244 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Chart.js CDN for Radar Chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+    
+    <!-- Firebase 8.10.1 官方穩定 SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    
+
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+        
+        :root {
+            /* ================= 莫蘭迪 淺色系 (Morandi Light) ================= */
+            --bg-page: #EFF2EC;            /* 莫蘭迪 燕麥冷灰白 */
+            --bg-card: #FFFFFF;            /* 溫潤白 */
+            --bg-sub: #F5F7F3;             /* 莫蘭迪 晨霧淺灰 */
+            --bg-input: #FAFBF9;           /* 柔白輸入底色 */
+            --border-main: #DCE2DA;        /* 鼠尾草淺灰邊框 */
+            --border-focus: #70859C;       /* 霧霾灰藍聚焦邊框 */
+            
+            /* 文字顏色 */
+            --text-main: #2D3732;          /* 墨綠深炭灰 */
+            --text-sub: #54635A;           /* 鼠尾草灰 */
+            --text-muted: #88968E;         /* 柔和次要字 */
+            
+            /* 莫蘭迪 主題重點色 */
+            --color-primary: #647B94;      /* 霧霾冷灰藍 (Primary) */
+            --color-primary-hover: #536980;
+            --color-primary-bg: #E8EEF5;
+            --color-primary-text: #2D4155;
+            
+            --color-success: #60826A;      /* 鼠尾草灰綠 (Success) */
+            --color-success-hover: #4F6F58;
+            --color-success-bg: #EAF2EC;
+            --color-success-text: #274731;
+            
+            --color-warning: #A88656;      /* 奶栗棕黃 (Warning) */
+            --color-warning-hover: #937447;
+            --color-warning-bg: #F7F1E6;
+            --color-warning-text: #5A431F;
+            
+            --color-danger: #B5746A;       /* 陶土豆沙粉 (Danger) */
+            --color-danger-hover: #A06056;
+            --color-danger-bg: #F8ECE9;
+            --color-danger-text: #5E2C24;
+            
+            --color-purple: #7E708E;       /* 煙燻灰紫 (Purple) */
+            --color-purple-hover: #6C5F7C;
+            --color-purple-bg: #EFEAF4;
+            --color-purple-text: #3E324E;
+            
+            --header-bg: rgba(255, 255, 255, 0.92);
+            --header-border: #DCE2DA;
+            --modal-bg: #FFFFFF;
+        }
+
+        [data-theme="dark"] {
+            /* ================= 莫蘭迪 深色系 (Morandi Dark) ================= */
+            --bg-page: #171B19;            /* 莫蘭迪 暗夜石板墨綠 */
+            --bg-card: #202623;            /* 沉穩暗墨灰 */
+            --bg-sub: #272F2B;             /* 次階暗灰綠 */
+            --bg-input: #1C221F;           /* 輸入框暗色 */
+            --border-main: #333D37;        /* 深灰綠邊框 */
+            --border-focus: #8397AD;       /* 亮霧灰藍聚焦 */
+            
+            /* 文字顏色 */
+            --text-main: #E7ECE8;          /* 柔和米白字 */
+            --text-sub: #B6C2B9;           /* 灰綠副字體 */
+            --text-muted: #7E8D84;         /* 暗夜次要字 */
+            
+            /* 莫蘭迪 主題重點色 (深色版調亮) */
+            --color-primary: #7C92A8;      /* 霧霾冷藍 */
+            --color-primary-hover: #8EA4BB;
+            --color-primary-bg: #273441;
+            --color-primary-text: #D5E2EF;
+            
+            --color-success: #789981;      /* 鼠尾草灰綠 */
+            --color-success-hover: #8BAE94;
+            --color-success-bg: #223527;
+            --color-success-text: #D1E7D6;
+            
+            --color-warning: #BFA073;      /* 暖栗黃 */
+            --color-warning-hover: #D0B388;
+            --color-warning-bg: #383023;
+            --color-warning-text: #F3E4CD;
+            
+            --color-danger: #C4857C;       /* 陶土粉 */
+            --color-danger-hover: #D5978E;
+            --color-danger-bg: #3B2624;
+            --color-danger-text: #F7D4CF;
+            
+            --color-purple: #9686A5;       /* 灰紫 */
+            --color-purple-hover: #A99AB7;
+            --color-purple-bg: #322A3B;
+            --color-purple-text: #E8DEEF;
+            
+            --header-bg: rgba(32, 38, 35, 0.92);
+            --header-border: #333D37;
+            --modal-bg: #202623;
+        }
+
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f8fafc;
+            background-color: var(--bg-page) !important;
+            color: var(--text-main) !important;
+            transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
         }
+
+        /* 全站卡片與容器自動變換 */
+        header {
+            background-color: var(--header-bg) !important;
+            border-color: var(--header-border) !important;
+            backdrop-filter: blur(10px);
+        }
+        
+        .bg-white {
+            background-color: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border-main) !important;
+        }
+        
+        .bg-slate-50, .bg-slate-100 {
+            background-color: var(--bg-sub) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border-main) !important;
+        }
+
+        /* 邊框統一套用莫蘭迪邊框 */
+        .border-slate-200, .border-slate-100, .border-slate-300 {
+            border-color: var(--border-main) !important;
+        }
+
+        /* 文字色彩統一套用 */
+        .text-slate-900, .text-slate-800, .text-slate-700 {
+            color: var(--text-main) !important;
+        }
+        .text-slate-600, .text-slate-500 {
+            color: var(--text-sub) !important;
+        }
+        .text-slate-400 {
+            color: var(--text-muted) !important;
+        }
+
+        /* 主要 Indigo 按鈕全面替換為 莫蘭迪冷藍 */
+        .bg-indigo-600 {
+            background-color: var(--color-primary) !important;
+            color: #FFFFFF !important;
+        }
+        .bg-indigo-600:hover, .hover\:bg-indigo-700:hover {
+            background-color: var(--color-primary-hover) !important;
+        }
+        .text-indigo-600, .text-indigo-700 {
+            color: var(--color-primary) !important;
+        }
+        .bg-indigo-50, .bg-indigo-50\/70, .bg-indigo-50\/80 {
+            background-color: var(--color-primary-bg) !important;
+            color: var(--color-primary-text) !important;
+            border-color: var(--color-primary) !important;
+        }
+        .border-indigo-600, .border-indigo-200, .border-indigo-300 {
+            border-color: var(--color-primary) !important;
+        }
+
+        /* 綠色 Emerald 全面替換為 莫蘭迪鼠尾草綠 */
+        .bg-emerald-600 {
+            background-color: var(--color-success) !important;
+            color: #FFFFFF !important;
+        }
+        .bg-emerald-600:hover, .hover\:bg-emerald-700:hover {
+            background-color: var(--color-success-hover) !important;
+        }
+        .text-emerald-600, .text-emerald-700, .text-emerald-800 {
+            color: var(--color-success) !important;
+        }
+        .bg-emerald-50, .bg-emerald-100 {
+            background-color: var(--color-success-bg) !important;
+            color: var(--color-success-text) !important;
+        }
+        .border-emerald-200 {
+            border-color: var(--color-success) !important;
+        }
+
+        /* 琥珀 Amber / 警告色 全面替換為 莫蘭迪奶栗棕 */
+        .bg-amber-50, .bg-amber-100 {
+            background-color: var(--color-warning-bg) !important;
+            color: var(--color-warning-text) !important;
+        }
+        .text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900 {
+            color: var(--color-warning) !important;
+        }
+        .border-amber-200 {
+            border-color: var(--color-warning) !important;
+        }
+
+        /* 紫色 Purple 全面替換為 莫蘭迪煙燻灰紫 */
+        .bg-purple-50, .bg-purple-100 {
+            background-color: var(--color-purple-bg) !important;
+            color: var(--color-purple-text) !important;
+        }
+        .bg-purple-600 {
+            background-color: var(--color-purple) !important;
+            color: #FFFFFF !important;
+        }
+        .bg-purple-600:hover, .hover\:bg-purple-700:hover {
+            background-color: var(--color-purple-hover) !important;
+        }
+        .text-purple-600, .text-purple-700 {
+            color: var(--color-purple) !important;
+        }
+
+        /* 紅色 Rose 全面替換為 莫蘭迪陶土粉 */
+        .bg-rose-50, .bg-rose-100 {
+            background-color: var(--color-danger-bg) !important;
+            color: var(--color-danger-text) !important;
+        }
+        .text-rose-600, .text-rose-700, .text-rose-800 {
+            color: var(--color-danger) !important;
+        }
+        .border-rose-200 {
+            border-color: var(--color-danger) !important;
+        }
+
+        /* 輸入框全面莫蘭迪化 */
+        input, select, textarea {
+            background-color: var(--bg-input) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border-main) !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--border-focus) !important;
+            box-shadow: 0 0 0 2px rgba(100, 123, 148, 0.2) !important;
+        }
+
+        /* 莫蘭迪按鈕陰影柔化 */
+        .shadow-sm, .shadow-md, .shadow-lg {
+            box-shadow: 0 4px 14px 0 rgba(45, 55, 50, 0.06) !important;
+        }
+
         .fade-in {
             animation: fadeIn 0.25s ease-in-out;
         }
@@ -23,32 +255,31 @@
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
-    </style>
-    <!-- Firebase 8.10.1 官方穩定 SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <style>
+        /* 列印專用樣式 */
         @media print {
-            header, footer, #resultFooterActions, #adminSecretDoorModal, .no-print {
+            header, footer, #resultFooterActions, #adminSecretDoorModal, #headerControlsGroup, .no-print {
                 display: none !important;
             }
             body {
                 background-color: white !important;
                 color: black !important;
             }
-            #resultView {
+            #resultView, #anonymousReportModal {
                 display: block !important;
                 max-width: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                background-color: white !important;
             }
-            .bg-white {
+            .bg-white, .bg-card-theme {
                 box-shadow: none !important;
-                border: 1px solid #e2e8f0 !important;
+                border: 1px solid #cbd5e1 !important;
+                background-color: white !important;
+                color: black !important;
             }
             canvas {
-                max-width: 300px !important;
+                max-width: 360px !important;
                 margin: 0 auto !important;
             }
             @page {
@@ -56,8 +287,7 @@
                 margin: 12mm;
             }
         }
-    </style>
-
+</style>
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col">
 
@@ -3162,12 +3392,12 @@
                         label: '觀念掌握度 (%)',
                         data: dataScores,
                         fill: true,
-                        backgroundColor: 'rgba(99, 102, 241, 0.25)',
-                        borderColor: 'rgb(79, 70, 229)',
-                        pointBackgroundColor: 'rgb(79, 70, 229)',
+                        backgroundColor: 'rgba(100, 123, 148, 0.28)',
+                        borderColor: '#647B94',
+                        pointBackgroundColor: '#647B94',
                         pointBorderColor: '#fff',
                         pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgb(79, 70, 229)',
+                        pointHoverBorderColor: '#647B94',
                         borderWidth: 2
                     }]
                 },
