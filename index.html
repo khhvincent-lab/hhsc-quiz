@@ -1109,10 +1109,10 @@
             renderStudentQuizOptions();
         }
 
-        function renderStudentQuizOptions() {
+                function renderStudentQuizOptions() {
             const container = document.getElementById('studentQuizListContainer');
             container.innerHTML = '';
-            const filtered = allQuizzes.filter(q => q.grade === studentSelectedGrade);
+            let filtered = allQuizzes.filter(q => q.grade === studentSelectedGrade);
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="p-4 bg-slate-50 text-center rounded-xl text-xs text-slate-400 font-bold">該班級目前無可用考卷</div>`;
@@ -1120,33 +1120,88 @@
                 return;
             }
 
-            if (!filtered.some(q => q.id === studentSelectedQuizId)) {
-                studentSelectedQuizId = filtered[0].id;
+            // 智能排序：開放中/最新考卷排在最上方；過期截止的考卷依序往下排列 (排在最底層)
+            filtered.sort((a, b) => {
+                const statusA = getQuizTimeStatus(a);
+                const statusB = getQuizTimeStatus(b);
+                
+                // 優先權順序：0: 開放中, 1: 尚未開始, 2: 已截止過期
+                const priorityOrder = { 'open': 0, 'notStarted': 1, 'expired': 2 };
+                const prioA = priorityOrder[statusA.statusType] ?? 1;
+                const prioB = priorityOrder[statusB.statusType] ?? 1;
+
+                if (prioA !== prioB) {
+                    return prioA - prioB; // 數字小的排前面 (開放中排最前，過期排最後)
+                }
+
+                // 同狀態下，依建立時間或 ID 降冪排序 (最新的在最上方)
+                const timeA = (a.startTime ? new Date(a.startTime).getTime() : 0) || parseInt(String(a.id).replace(/\D/g, '')) || 0;
+                const timeB = (b.startTime ? new Date(b.startTime).getTime() : 0) || parseInt(String(b.id).replace(/\D/g, '')) || 0;
+                return timeB - timeA;
+            });
+
+            // 自動選擇第一個「可作答 (開放中)」的考卷
+            const availableOpenQuizzes = filtered.filter(q => getQuizTimeStatus(q).open);
+            if (availableOpenQuizzes.length > 0) {
+                if (!availableOpenQuizzes.some(q => q.id === studentSelectedQuizId)) {
+                    studentSelectedQuizId = availableOpenQuizzes[0].id;
+                }
+            } else {
+                studentSelectedQuizId = null;
             }
 
             filtered.forEach((quiz) => {
-                const isSelected = (quiz.id === studentSelectedQuizId);
-                const item = document.createElement('div');
-                item.className = `p-3.5 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
-                    isSelected ? 'border-indigo-600 bg-indigo-50 text-indigo-950 font-bold' : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
-                }`;
-                item.onclick = () => {
-                    studentSelectedQuizId = quiz.id;
-                    renderStudentQuizOptions();
-                };
-
                 const timeStatus = getQuizTimeStatus(quiz);
+                const isOpen = timeStatus.open;
+                const isSelected = isOpen && (quiz.id === studentSelectedQuizId);
+
+                const item = document.createElement('div');
+                
+                if (isOpen) {
+                    // 可作答考卷正常樣式
+                    item.className = `p-3.5 rounded-xl border-2 cursor-pointer transition flex items-center justify-between ${
+                        isSelected ? 'border-indigo-600 bg-indigo-50 text-indigo-950 font-bold shadow-sm' : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                    }`;
+                    item.onclick = () => {
+                        studentSelectedQuizId = quiz.id;
+                        renderStudentQuizOptions();
+                    };
+                } else {
+                    // 過期或未開放考卷：反灰、禁止選取樣式
+                    item.className = `p-3.5 rounded-xl border border-slate-200 bg-slate-100/80 text-slate-400 opacity-60 cursor-not-allowed select-none transition flex items-center justify-between`;
+                    item.onclick = () => {
+                        if (timeStatus.expired) {
+                            alert(`⚠️ 此份考卷【${quiz.title}】已超過截止時間，目前不開放選取作答！`);
+                        } else {
+                            alert(`⚠️ 此份考卷【${quiz.title}】尚未開放測驗！\n開放時間為：${quiz.startTime ? quiz.startTime.replace('T', ' ') : '尚未設定'}`);
+                        }
+                    };
+                }
+
+                let iconHtml = '';
+                if (isOpen) {
+                    iconHtml = `
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'}">
+                            ${isSelected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                        </div>
+                    `;
+                } else {
+                    iconHtml = `
+                        <div class="w-5 h-5 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center text-[10px]" title="無法選取">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                    `;
+                }
+
                 item.innerHTML = `
-                    <div class="space-y-0.5">
-                        <div class="text-sm font-bold flex items-center gap-2">
-                            <span>${escapeHtml(quiz.title)}</span>
+                    <div class="space-y-0.5 pr-2">
+                        <div class="text-sm font-bold flex items-center flex-wrap gap-2">
+                            <span class="${isOpen ? 'text-slate-900' : 'text-slate-500 line-through decoration-slate-300'}">${escapeHtml(quiz.title)}</span>
                             <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${timeStatus.badgeClass}">${timeStatus.text}</span>
                         </div>
-                        <div class="text-xs text-slate-500 font-normal">${quiz.questions.length} 題 | ${quiz.timerMode === 'countdown' ? `限時 ${quiz.countdownMinutes} 分鐘` : '正數計時'}</div>
+                        <div class="text-xs ${isOpen ? 'text-slate-500' : 'text-slate-400'} font-normal">${quiz.questions.length} 題 | ${quiz.timerMode === 'countdown' ? `限時 ${quiz.countdownMinutes} 分鐘` : '正數計時'}</div>
                     </div>
-                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'}">
-                        ${isSelected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
-                    </div>
+                    ${iconHtml}
                 `;
                 container.appendChild(item);
             });
@@ -2196,26 +2251,28 @@
         }
 
         
-        // 檢查考卷當前是否在開放時間內
+                // 檢查考卷當前是否在開放時間內
         function getQuizTimeStatus(quiz) {
-            if (!quiz.startTime && !quiz.endTime) return { open: true, text: "全天候開放", badgeClass: "bg-emerald-50 text-emerald-700" };
+            if (!quiz.startTime && !quiz.endTime) {
+                return { open: true, expired: false, notStarted: false, statusType: 'open', text: "全天候開放", badgeClass: "bg-emerald-50 text-emerald-700" };
+            }
             
             const now = new Date().getTime();
             if (quiz.startTime) {
                 const start = new Date(quiz.startTime).getTime();
                 if (now < start) {
-                    return { open: false, text: `未開始 (${quiz.startTime.replace('T', ' ')} 開放)`, badgeClass: "bg-slate-100 text-slate-600" };
+                    return { open: false, expired: false, notStarted: true, statusType: 'notStarted', text: `未開始 (${quiz.startTime.replace('T', ' ')} 開放)`, badgeClass: "bg-amber-50 text-amber-700 font-bold" };
                 }
             }
             if (quiz.endTime) {
                 const end = new Date(quiz.endTime).getTime();
                 if (now > end) {
-                    return { open: false, text: `已截止 (截止於 ${quiz.endTime.replace('T', ' ')})`, badgeClass: "bg-rose-50 text-rose-700" };
+                    return { open: false, expired: true, notStarted: false, statusType: 'expired', text: `已截止 (${quiz.endTime.replace('T', ' ')} 截止)`, badgeClass: "bg-slate-200 text-slate-600 font-bold" };
                 }
             }
 
             const endStr = quiz.endTime ? ` (考到 ${quiz.endTime.replace('T', ' ')})` : '';
-            return { open: true, text: `開放測驗中${endStr}`, badgeClass: "bg-emerald-50 text-emerald-700 font-bold" };
+            return { open: true, expired: false, notStarted: false, statusType: 'open', text: `開放測驗中${endStr}`, badgeClass: "bg-emerald-50 text-emerald-700 font-bold" };
         }
 
         function toggleAlwaysOpenInput() {
