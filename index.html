@@ -27,6 +27,37 @@
     <!-- Firebase 8.10.1 官方穩定 SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        @media print {
+            header, footer, #resultFooterActions, #adminSecretDoorModal, .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+                color: black !important;
+            }
+            #resultView {
+                display: block !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .bg-white {
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            canvas {
+                max-width: 300px !important;
+                margin: 0 auto !important;
+            }
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+        }
+    </style>
+
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col">
 
@@ -399,6 +430,29 @@
                                 <input type="number" id="inputCountdownMinutes" oninput="saveCurrentQuizMeta()" value="10" min="1" max="180" class="w-16 px-2 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                                 <span class="text-xs font-bold text-slate-500">分</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 開放測驗時間區間設定 (考到幾點) -->
+                <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock text-indigo-600"></i> 開放測驗時間限制 (考卷開放到幾點)
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-indigo-600">
+                            <input type="checkbox" id="chkAlwaysOpen" onchange="toggleAlwaysOpenInput(); saveCurrentQuizMeta();" class="w-4 h-4 text-indigo-600 rounded">
+                            <span>不限時間（全天候隨時可考）</span>
+                        </label>
+                    </div>
+                    <div id="timeRangeInputsWrap" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <span class="text-[11px] font-bold text-slate-500 block mb-1">開放開始時間：</span>
+                            <input type="datetime-local" id="inputStartTime" onchange="saveCurrentQuizMeta()" class="w-full px-3 py-1.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <span class="text-[11px] font-bold text-slate-500 block mb-1">截止結束時間 (考到幾點)：</span>
+                            <input type="datetime-local" id="inputEndTime" onchange="saveCurrentQuizMeta()" class="w-full px-3 py-1.5 bg-white border rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
                         </div>
                     </div>
                 </div>
@@ -1081,10 +1135,14 @@
                     renderStudentQuizOptions();
                 };
 
+                const timeStatus = getQuizTimeStatus(quiz);
                 item.innerHTML = `
-                    <div>
-                        <div class="text-sm font-bold">${escapeHtml(quiz.title)}</div>
-                        <div class="text-xs text-slate-500 font-normal mt-0.5">${quiz.questions.length} 題 | ${quiz.timerMode === 'countdown' ? `限時 ${quiz.countdownMinutes} 分鐘` : '正數計時'}</div>
+                    <div class="space-y-0.5">
+                        <div class="text-sm font-bold flex items-center gap-2">
+                            <span>${escapeHtml(quiz.title)}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${timeStatus.badgeClass}">${timeStatus.text}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 font-normal">${quiz.questions.length} 題 | ${quiz.timerMode === 'countdown' ? `限時 ${quiz.countdownMinutes} 分鐘` : '正數計時'}</div>
                     </div>
                     <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'}">
                         ${isSelected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
@@ -1113,6 +1171,12 @@
             const quiz = allQuizzes.find(q => q.id === studentSelectedQuizId);
             if (!quiz || quiz.questions.length === 0) {
                 alert("所選考卷尚無題目！");
+                return;
+            }
+
+            const timeStatus = getQuizTimeStatus(quiz);
+            if (!timeStatus.open) {
+                alert(`⚠️ 本份考卷目前無法進行測驗！\n\n狀態：${timeStatus.text}\n請於規定的開放時間內作答。`);
                 return;
             }
 
@@ -1292,14 +1356,18 @@
                     const card = document.createElement('div');
                     card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4";
                     
+                    const timeStatus = getQuizTimeStatus(quiz);
                     const timerTag = quiz.timerMode === 'countdown' 
                         ? `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-xs font-bold"><i class="fa-solid fa-hourglass-half mr-1"></i>限時 ${quiz.countdownMinutes} 分</span>`
                         : `<span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold"><i class="fa-solid fa-stopwatch mr-1"></i>正數計時</span>`;
 
                     card.innerHTML = `
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-black px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">${getGradeName(quiz.grade)}</span>
+                            <div class="flex items-center justify-between flex-wrap gap-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-black px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">${getGradeName(quiz.grade)}</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${timeStatus.badgeClass}">${timeStatus.text}</span>
+                                </div>
                                 ${timerTag}
                             </div>
                             <h3 class="font-bold text-slate-900 text-base leading-snug line-clamp-2">${escapeHtml(quiz.title)}</h3>
@@ -1576,9 +1644,14 @@
                         </span>
                     </td>
                     <td class="p-3.5 text-center">
-                        <button onclick="viewStudentDetailReport(${originalIdx}, true)" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition">
-                            查看診斷報表
-                        </button>
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="viewStudentDetailReport(${originalIdx}, true)" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition whitespace-nowrap">
+                                診斷報表
+                            </button>
+                            <button onclick="deleteSingleSubmission('${sub.id}', '${escapeHtml(sub.studentName)}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition" title="刪除此作答紀錄">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1671,6 +1744,11 @@
                     </div>
 
                     <p class="font-bold text-sm md:text-base text-slate-900 leading-snug">${escapeHtml(q.text)}</p>
+                    ${q.image && q.image.trim() !== '' ? `
+                        <div class="rounded-xl overflow-hidden border border-slate-200 max-h-56 bg-slate-50 flex items-center justify-center p-2">
+                            <img src="${q.image}" alt="題目圖片" class="max-h-52 w-auto object-contain">
+                        </div>
+                    ` : ''}
 
                     <div class="text-xs grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
                         <div>您的選擇: <b class="${isCorrect ? 'text-emerald-600' : 'text-rose-600'}">${userAnsStr}</b></div>
@@ -1702,8 +1780,11 @@
             } else {
                 teacherWrap.classList.add('hidden');
                 footerActions.innerHTML = `
-                    <button onclick="switchToStudentPortal()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> 返回測驗首頁
+                    <button onclick="exportStudentResultPDF()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-100 transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-base"></i> 下載 / 匯出 PDF 成績診斷單
+                    </button>
+                    <button onclick="switchToStudentPortal()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> 返回測驗首頁
                     </button>
                 `;
             }
@@ -1770,6 +1851,29 @@
             }
 
             document.getElementById('aiAiAdviceBox').innerHTML = adviceHtml;
+        }
+
+        
+        // ================= 刪除個別考生作答紀錄 =================
+        async function deleteSingleSubmission(submissionId, studentName) {
+            if (!confirm(`確定要刪除考生【${studentName}】的此筆作答繳卷紀錄嗎？\n(此動作無法復原)`)) return;
+
+            studentSubmissionsDB = studentSubmissionsDB.filter(s => s.id !== submissionId);
+            try { localStorage.setItem('hhsc_quiz_subs_v17', JSON.stringify(studentSubmissionsDB)); } catch(e) {}
+
+            // 從 Firebase 雲端非同步刪除
+            try {
+                await fetch(`${FIREBASE_ENDPOINT}/submissions/${submissionId}.json`, {
+                    method: 'DELETE'
+                });
+                console.log("Firebase 雲端單筆紀錄已成功刪除");
+            } catch(e) {
+                console.warn("雲端刪除提示:", e);
+            }
+
+            renderSubmissionsTable();
+            generateFiveStandards();
+            alert(`已成功刪除【${studentName}】的作答紀錄！`);
         }
 
         function clearAllSubmissions() {
@@ -1948,11 +2052,17 @@
 
             document.getElementById('inputQuizTitle').value = quiz.title;
             document.getElementById('inputQuizGrade').value = quiz.grade;
-            document.getElementById('timerModeSelect').value = quiz.grade; // 等等，維持原樣
             document.getElementById('timerModeSelect').value = quiz.timerMode;
             document.getElementById('inputCountdownMinutes').value = quiz.countdownMinutes || 10;
             document.getElementById('inputQuizInstructions').value = quiz.instructions || "";
             document.getElementById('inputQuizDesc').value = quiz.desc || "";
+            
+            // 時間設定
+            const isAlways = (!quiz.startTime && !quiz.endTime);
+            document.getElementById('chkAlwaysOpen').checked = isAlways;
+            document.getElementById('inputStartTime').value = quiz.startTime || '';
+            document.getElementById('inputEndTime').value = quiz.endTime || '';
+            toggleAlwaysOpenInput();
             toggleTimerModeInput();
 
             document.getElementById('dashboardView').classList.add('hidden');
@@ -2020,6 +2130,15 @@
             quiz.countdownMinutes = parseInt(document.getElementById('inputCountdownMinutes').value) || 10;
             quiz.instructions = document.getElementById('inputQuizInstructions').value || "";
             quiz.desc = document.getElementById('inputQuizDesc').value || "";
+            
+            const isAlways = document.getElementById('chkAlwaysOpen').checked;
+            if (isAlways) {
+                delete quiz.startTime;
+                delete quiz.endTime;
+            } else {
+                quiz.startTime = document.getElementById('inputStartTime').value || null;
+                quiz.endTime = document.getElementById('inputEndTime').value || null;
+            }
             saveQuizzesToStorage();
         }
 
@@ -2074,6 +2193,39 @@
             quiz.skillDimensions.splice(idx, 1);
             renderSkillTags();
             renderTeacherQuestions();
+        }
+
+        
+        // 檢查考卷當前是否在開放時間內
+        function getQuizTimeStatus(quiz) {
+            if (!quiz.startTime && !quiz.endTime) return { open: true, text: "全天候開放", badgeClass: "bg-emerald-50 text-emerald-700" };
+            
+            const now = new Date().getTime();
+            if (quiz.startTime) {
+                const start = new Date(quiz.startTime).getTime();
+                if (now < start) {
+                    return { open: false, text: `未開始 (${quiz.startTime.replace('T', ' ')} 開放)`, badgeClass: "bg-slate-100 text-slate-600" };
+                }
+            }
+            if (quiz.endTime) {
+                const end = new Date(quiz.endTime).getTime();
+                if (now > end) {
+                    return { open: false, text: `已截止 (截止於 ${quiz.endTime.replace('T', ' ')})`, badgeClass: "bg-rose-50 text-rose-700" };
+                }
+            }
+
+            const endStr = quiz.endTime ? ` (考到 ${quiz.endTime.replace('T', ' ')})` : '';
+            return { open: true, text: `開放測驗中${endStr}`, badgeClass: "bg-emerald-50 text-emerald-700 font-bold" };
+        }
+
+        function toggleAlwaysOpenInput() {
+            const chk = document.getElementById('chkAlwaysOpen').checked;
+            const wrap = document.getElementById('timeRangeInputsWrap');
+            if (chk) {
+                wrap.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                wrap.classList.remove('opacity-40', 'pointer-events-none');
+            }
         }
 
         function toggleTimerModeInput() {
@@ -2174,16 +2326,23 @@
                         <textarea oninput="updateQuestionText(${qIndex}, this.value)" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" rows="2" placeholder="請輸入題目內容">${escapeHtml(q.text)}</textarea>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">題目圖片 (選填：支援貼網址或上傳圖檔)</label>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-600">題目圖片 (選填：支援點擊直接上傳圖檔或貼圖片網址)</label>
                         <div class="flex gap-2">
-                            <input type="text" value="${escapeHtml(q.image || '')}" oninput="updateQuestionImage(${qIndex}, this.value)" class="flex-1 px-3 py-1.5 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="https://example.com/image.jpg">
-                            <label class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer flex items-center gap-1">
-                                <i class="fa-solid fa-upload"></i> 上傳圖片
+                            <input type="text" value="${escapeHtml(q.image || '')}" oninput="updateQuestionImage(${qIndex}, this.value)" class="flex-1 px-3 py-1.5 bg-slate-50 border rounded-xl text-xs font-mono focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="可在此貼上圖片網址，或直接點右側上傳圖片">
+                            <label class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> 選擇圖檔上傳
                                 <input type="file" accept="image/*" class="hidden" onchange="handleImageFileUpload(event, ${qIndex})">
                             </label>
                         </div>
-                        ${q.image ? `<img src="${q.image}" class="mt-2 h-20 rounded border border-slate-200 object-cover">` : ''}
+                        ${q.image && q.image.trim() !== '' ? `
+                            <div class="relative inline-block mt-1 group">
+                                <img src="${q.image}" alt="題目圖片預覽" class="max-h-44 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1 shadow-sm">
+                                <button type="button" onclick="removeQuestionImage(${qIndex})" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center text-xs shadow-md transition" title="刪除此題目圖片">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
 
                     <div class="space-y-2 pt-2">
@@ -2332,18 +2491,57 @@
             renderTeacherQuestions();
         }
 
+        // ================= 智慧前端圖片壓縮與上傳模組 (解決大圖無法顯示與儲存問題) =================
         function handleImageFileUpload(e, qIdx) {
             const file = e.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const quiz = allQuizzes.find(q => q.id === currentEditingQuizId);
-                if (quiz) {
-                    quiz.questions[qIdx].image = evt.target.result;
-                    renderTeacherQuestions();
-                }
+                const img = new Image();
+                img.onload = function() {
+                    // 使用 Canvas 進行等比例縮放與壓縮 (最大寬高 1000px，品質 0.8)
+                    const maxDim = 1000;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round((h * maxDim) / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round((w * maxDim) / h);
+                            h = maxDim;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    // 轉為輕量化的 JPEG Base64
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+
+                    const quiz = allQuizzes.find(q => q.id === currentEditingQuizId);
+                    if (quiz) {
+                        quiz.questions[qIdx].image = compressedBase64;
+                        saveQuizzesToStorage();
+                        renderTeacherQuestions();
+                    }
+                };
+                img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        function removeQuestionImage(qIdx) {
+            const quiz = allQuizzes.find(q => q.id === currentEditingQuizId);
+            if (quiz) {
+                quiz.questions[qIdx].image = "";
+                saveQuizzesToStorage();
+                renderTeacherQuestions();
+            }
         }
 
         // ================= 3. 學生測驗模式邏輯 =================
@@ -2596,6 +2794,26 @@
             document.getElementById('resultView').classList.remove('hidden');
 
             viewStudentDetailReport(0, false);
+        }
+
+        
+        // ================= 學生端作答結果 PDF 匯出與列印模組 =================
+        function exportStudentResultPDF() {
+            // 自動為列印時的標題命名，方便學生另存 PDF
+            const origTitle = document.title;
+            const greeting = document.getElementById('resStudentGreeting').innerText.replace(' 同學，測驗已順利交卷！', '');
+            const subtitle = document.getElementById('resQuizSubtitle').innerText;
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+            
+            document.title = `【小考成績診斷單】${greeting}_${subtitle}_${dateStr}`;
+            
+            // 觸發瀏覽器原生的 PDF 匯出 / 列印功能 (支援 iPhone/Android/Mac/Windows 原生另存為 PDF)
+            window.print();
+
+            setTimeout(() => {
+                document.title = origTitle;
+            }, 1000);
         }
 
         function renderRadarChart(skillStats) {
