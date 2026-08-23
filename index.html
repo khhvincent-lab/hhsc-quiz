@@ -74,8 +74,12 @@
                 </div>
             </div>
 
-            <!-- 頂部控制區 (後台模式時顯示返回學生端按鈕，學生模式隱藏) -->
-            <div class="flex items-center gap-2">
+            <!-- 頂部控制區 (包含深淺主題切換與返回學生端按鈕) -->
+            <div class="flex items-center gap-2.5" id="headerControlsGroup">
+                <!-- 莫蘭迪深淺主題切換按鈕 -->
+                <button onclick="toggleColorTheme()" id="themeToggleBtn" class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-amber-400 hover:bg-slate-100 transition flex items-center justify-center text-sm shadow-sm" title="切換莫蘭迪淺色/深色模式">
+                    <i class="fa-solid fa-moon" id="themeIcon"></i>
+                </button>
                 <button onclick="switchToStudentPortal()" id="btnNavExitAdmin" class="hidden px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5 shadow-sm">
                     <i class="fa-solid fa-arrow-left"></i> 返回學生測驗入口
                 </button>
@@ -311,8 +315,11 @@
                                 <option value="all">📊 全部考卷 (綜合)</option>
                             </select>
                         </div>
-                        <button onclick="generateFiveStandards()" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-1 whitespace-nowrap">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> 重新計算
+                        <button onclick="generateFiveStandards()" class="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1 whitespace-nowrap">
+                            <i class="fa-solid fa-rotate"></i> 重算五標
+                        </button>
+                        <button onclick="openAnonymousReportModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-purple-100 transition flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-file-invoice"></i> 📊 輸出全班匿名分析單 (OOO)
                         </button>
                     </div>
                 </div>
@@ -950,6 +957,7 @@
         // ================= 初始化 =================
                 window.addEventListener('DOMContentLoaded', () => {
             applyAllTexts();
+            applyTheme(currentTheme);
 
             // 即時監聽 Firebase 雲端資料庫 (成績與考卷設定)
             if (typeof fbDB !== 'undefined' && fbDB) {
@@ -1026,6 +1034,7 @@
             systemConfigs.grade3Name = document.getElementById('cfgGrade3Name').value.trim() || "高雄高三班";
 
             applyAllTexts();
+            applyTheme(currentTheme);
             renderDashboard();
         }
 
@@ -1594,18 +1603,18 @@
                         label: '人數分佈 (人)',
                         data: bins,
                         backgroundColor: [
-                            'rgba(244, 63, 94, 0.75)',
-                            'rgba(251, 146, 60, 0.75)',
-                            'rgba(250, 204, 21, 0.75)',
-                            'rgba(99, 102, 241, 0.75)',
-                            'rgba(16, 185, 129, 0.75)'
+                            'rgba(184, 124, 114, 0.85)', // 莫蘭迪陶土粉
+                            'rgba(176, 141, 91, 0.85)',  // 莫蘭迪暖棕黃
+                            'rgba(135, 119, 149, 0.85)', // 莫蘭迪灰粉紫
+                            'rgba(112, 133, 156, 0.85)', // 莫蘭迪霧霾藍
+                            'rgba(108, 140, 116, 0.85)'  // 莫蘭迪鼠尾草綠
                         ],
                         borderColor: [
-                            'rgb(225, 29, 72)',
-                            'rgb(234, 88, 12)',
-                            'rgb(202, 138, 4)',
-                            'rgb(79, 70, 229)',
-                            'rgb(5, 150, 105)'
+                            '#854f46',
+                            '#7a5f35',
+                            '#5c4a6f',
+                            '#4a647a',
+                            '#45694c'
                         ],
                         borderWidth: 1.5,
                         borderRadius: 8
@@ -1909,27 +1918,288 @@
         }
 
         
-        // ================= 刪除個別考生作答紀錄 =================
-        async function deleteSingleSubmission(submissionId, studentName) {
-            if (!confirm(`確定要刪除考生【${studentName}】的此筆作答繳卷紀錄嗎？\n(此動作無法復原)`)) return;
+        
+        // ================= 莫蘭迪深淺主題切換模組 =================
+        let currentTheme = localStorage.getItem('hhsc_quiz_theme') || 'light';
 
-            studentSubmissionsDB = studentSubmissionsDB.filter(s => s.id !== submissionId);
-            try { localStorage.setItem('hhsc_quiz_subs_v17', JSON.stringify(studentSubmissionsDB)); } catch(e) {}
+        function applyTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            try { localStorage.setItem('hhsc_quiz_theme', theme); } catch(e) {}
 
-            // 從 Firebase 雲端非同步刪除
-            try {
-                await fetch(`${FIREBASE_ENDPOINT}/submissions/${submissionId}.json`, {
-                    method: 'DELETE'
-                });
-                console.log("Firebase 雲端單筆紀錄已成功刪除");
-            } catch(e) {
-                console.warn("雲端刪除提示:", e);
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                if (theme === 'dark') {
+                    icon.className = "fa-solid fa-sun text-amber-400";
+                } else {
+                    icon.className = "fa-solid fa-moon text-slate-600";
+                }
             }
 
+            // 若有組距圖實例，重繪以套用莫蘭迪深淺配色
+            if (distChartInstance) {
+                generateFiveStandards();
+            }
+        }
+
+        function toggleColorTheme() {
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(nextTheme);
+        }
+
+        // ================= 強化版：100% 雲端與本地同步刪除個別考生紀錄 =================
+        async function deleteSingleSubmission(submissionId, studentName) {
+            if (!confirm(`確定要徹底刪除考生【${studentName}】的此筆作答繳卷紀錄嗎？
+
+(系統將同步從雲端資料庫永久抹除此筆紀錄)`)) return;
+
+            // 1. 本地陣列過濾更新
+            studentSubmissionsDB = studentSubmissionsDB.filter(s => String(s.id) !== String(submissionId));
+            try { localStorage.setItem('hhsc_quiz_subs_v17', JSON.stringify(studentSubmissionsDB)); } catch(e) {}
+
+            // 2. 向 Firebase REST API 發送 DELETE 請求
+            try {
+                const delRes = await fetch(`${FIREBASE_ENDPOINT}/submissions/${submissionId}.json`, {
+                    method: 'DELETE'
+                });
+                if (delRes.ok) {
+                    console.log("Firebase 雲端單筆資料刪除成功！");
+                }
+            } catch(err) {
+                console.warn("Firebase 雲端刪除請求提示:", err);
+            }
+
+            // 3. 雙重保險：覆蓋整包最新 JSON 到雲端，防止不同步
+            try {
+                const payloadObj = {};
+                studentSubmissionsDB.forEach(sub => {
+                    payloadObj[sub.id] = sub;
+                });
+                await fetch(`${FIREBASE_ENDPOINT}/submissions.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadObj)
+                });
+                console.log("Firebase 雲端全表雙向同步更新完畢！");
+            } catch(e) {
+                console.warn("Firebase 雙向全表同步提示:", e);
+            }
+
+            // 4. 即時重新計算與渲染
             renderSubmissionsTable();
             generateFiveStandards();
-            alert(`已成功刪除【${studentName}】的作答紀錄！`);
+            alert(`🎉 已成功刪除【${studentName}】的作答紀錄，雲端已即時同步更新！`);
         }
+
+        // ================= 輸出全班匿名分析單 (五標 + 莫蘭迪組距圖 + 姓名 OOO 隱私排序) =================
+        let anonChartInstance = null;
+
+        function openAnonymousReportModal() {
+            let filtered = studentSubmissionsDB;
+
+            if (activeResultsFilterGrade !== 'all') {
+                filtered = filtered.filter(s => s.grade === activeResultsFilterGrade);
+            }
+            if (activeResultsFilterQuizId !== 'all') {
+                filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
+            }
+
+            if (filtered.length === 0) {
+                alert("⚠️ 目前所選的班級/考卷尚無任何學生作答繳卷紀錄，無法產生分析單！");
+                return;
+            }
+
+            // 取得考卷標題與班級
+            let quizTitle = "全班綜合測驗總評量";
+            let gradeTitle = (activeResultsFilterGrade !== 'all') ? getGradeName(activeResultsFilterGrade) : "全部班級";
+            if (activeResultsFilterQuizId !== 'all') {
+                const qObj = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
+                if (qObj) {
+                    quizTitle = qObj.title;
+                    gradeTitle = getGradeName(qObj.grade);
+                }
+            }
+
+            document.getElementById('anonReportGradeTag').innerText = gradeTitle;
+            document.getElementById('anonReportQuizTitle').innerText = quizTitle;
+            document.getElementById('anonReportStudentCount').innerText = filtered.length;
+
+            // 計算平均與最高分
+            const pctScores = filtered.map(s => {
+                const earned = s.score || 0;
+                const total = s.totalQuestions || 100;
+                return Math.round((earned / total) * 100);
+            });
+            const avg = Math.round(pctScores.reduce((a, b) => a + b, 0) / pctScores.length);
+            const max = Math.max(...pctScores);
+
+            document.getElementById('anonReportAvgScore').innerText = avg;
+            document.getElementById('anonReportMaxScore').innerText = max;
+
+            // 計算大考五標
+            const sortedAsc = [...pctScores].sort((a, b) => a - b);
+            const N = sortedAsc.length;
+            function getP(p) {
+                if (N === 1) return sortedAsc[0];
+                const index = (p / 100) * (N - 1);
+                const lower = Math.floor(index);
+                const upper = Math.ceil(index);
+                const weight = index - lower;
+                return Math.round(sortedAsc[lower] * (1 - weight) + sortedAsc[upper] * weight);
+            }
+
+            const topStd = getP(88);
+            const highStd = getP(75);
+            const avgStd = getP(50);
+            const lowStd = getP(25);
+            const bottomStd = getP(12);
+
+            document.getElementById('anonValTop').innerText = `${topStd} 分`;
+            document.getElementById('anonValHigh').innerText = `${highStd} 分`;
+            document.getElementById('anonValAvg').innerText = `${avgStd} 分`;
+            document.getElementById('anonValLow').innerText = `${lowStd} 分`;
+            document.getElementById('anonValBottom').innerText = `${bottomStd} 分`;
+
+            // 計算 5 個莫蘭迪組距
+            const bins = [0, 0, 0, 0, 0];
+            pctScores.forEach(score => {
+                if (score < 60) bins[0]++;
+                else if (score < 70) bins[1]++;
+                else if (score < 80) bins[2]++;
+                else if (score < 90) bins[3]++;
+                else bins[4]++;
+            });
+
+            renderAnonDistributionChart(bins);
+
+            // 產生姓名 OOO 匿名由高至低排行榜
+            const sortedDescSubmissions = [...filtered].sort((a, b) => {
+                const pctA = (a.score / (a.totalQuestions || 1));
+                const pctB = (b.score / (b.totalQuestions || 1));
+                if (pctB !== pctA) return pctB - pctA;
+                return (a.totalElapsedSeconds || 0) - (b.totalElapsedSeconds || 0); // 分數相同者比時間少
+            });
+
+            const tbody = document.getElementById('anonRankingsTbody');
+            tbody.innerHTML = '';
+
+            sortedDescSubmissions.forEach((sub, rankIdx) => {
+                const rank = rankIdx + 1;
+                const pct = Math.round((sub.score / (sub.totalQuestions || 1)) * 100);
+
+                // 判斷五標落點標籤
+                let rankTier = "後標段";
+                let tierBadge = "bg-amber-100 text-amber-800";
+                if (pct >= topStd) { rankTier = "🏆 頂標段"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
+                else if (pct >= highStd) { rankTier = "🎯 前標段"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
+                else if (pct >= avgStd) { rankTier = "⚖️ 均標段"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
+                else if (pct >= lowStd) { rankTier = "🛡️ 後標段"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
+                else { rankTier = "🧱 底標段"; tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold"; }
+
+                const tr = document.createElement('tr');
+                tr.className = rank <= 3 ? "bg-amber-50/40 font-bold" : "hover:bg-slate-50";
+
+                let medal = `${rank}`;
+                if (rank === 1) medal = '🥇 1';
+                else if (rank === 2) medal = '🥈 2';
+                else if (rank === 3) medal = '🥉 3';
+
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-mono text-sm">${medal}</td>
+                    <td class="p-3 text-center font-bold tracking-widest text-slate-700 font-mono">OOO</td>
+                    <td class="p-3 text-center font-bold text-slate-900">${sub.score} / ${sub.totalQuestions} 分</td>
+                    <td class="p-3 text-center">
+                        <span class="px-2.5 py-0.5 rounded-full font-black text-xs ${pct >= 60 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${pct}%
+                        </span>
+                    </td>
+                    <td class="p-3 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs ${tierBadge}">${rankTier}</span></td>
+                    <td class="p-3 text-center font-mono text-slate-500">${formatTime(sub.totalElapsedSeconds)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('anonymousReportModal').classList.remove('hidden');
+        }
+
+        function closeAnonymousReportModal() {
+            document.getElementById('anonymousReportModal').classList.add('hidden');
+        }
+
+        function renderAnonDistributionChart(bins) {
+            const ctx = document.getElementById('anonScoreChartCanvas');
+            if (!ctx) return;
+
+            if (anonChartInstance) {
+                anonChartInstance.destroy();
+            }
+
+            // 莫蘭迪高質感配色
+            anonChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['0~59分', '60~69分', '70~79分', '80~89分', '90~100分'],
+                    datasets: [{
+                        label: '人數',
+                        data: bins,
+                        backgroundColor: [
+                            'rgba(184, 124, 114, 0.85)', // 莫蘭迪陶土粉
+                            'rgba(176, 141, 91, 0.85)',  // 莫蘭迪暖棕黃
+                            'rgba(135, 119, 149, 0.85)', // 莫蘭迪灰粉紫
+                            'rgba(112, 133, 156, 0.85)', // 莫蘭迪霧霾藍
+                            'rgba(108, 140, 116, 0.85)'  // 莫蘭迪鼠尾草綠
+                        ],
+                        borderColor: [
+                            '#854f46',
+                            '#7a5f35',
+                            '#5c4a6f',
+                            '#4a647a',
+                            '#45694c'
+                        ],
+                        borderWidth: 1.5,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { weight: 'bold' } },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { weight: 'bold', size: 12 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` 人數: ${context.raw} 人`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function printAnonymousReport() {
+            const origTitle = document.title;
+            const quizTitle = document.getElementById('anonReportQuizTitle').innerText;
+            const gradeTitle = document.getElementById('anonReportGradeTag').innerText;
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+
+            document.title = `【全班匿名成績分析單】${gradeTitle}_${quizTitle}_${dateStr}`;
+            window.print();
+            setTimeout(() => { document.title = origTitle; }, 1000);
+        }
+
 
         function clearAllSubmissions() {
             if (confirm("確定要清空所有的學生作答紀錄嗎？")) {
@@ -3197,6 +3467,121 @@
                 <button onclick="submitAdminSecretPassword()" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> 登入後台
                 </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 全班成績匿名分析單 (五標 + 組距圖 + 姓名 OOO 隱私排序) Modal -->
+    <div id="anonymousReportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 fade-in overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <!-- 彈窗頂部工具列 -->
+            <div class="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shadow-sm">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">全班成績分析與匿名排行榜報告</h3>
+                        <p class="text-xs text-slate-500">大考五標 • 莫蘭迪組距分佈圖 • 姓名隱私 OOO 排名</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="printAnonymousReport()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> 列印 / 匯出 PDF
+                    </button>
+                    <button onclick="closeAnonymousReportModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 報表內容本體 (可滾動列印區) -->
+            <div class="p-4 sm:p-8 overflow-y-auto space-y-6 text-slate-800" id="anonymousReportPrintArea">
+                <!-- 報表抬頭資訊 -->
+                <div class="text-center space-y-1.5 border-b pb-5 border-slate-200">
+                    <span class="text-xs font-black tracking-widest px-3 py-1 rounded-full bg-slate-100 text-slate-600 uppercase" id="anonReportGradeTag">高雄高一班</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900" id="anonReportQuizTitle">考卷名稱</h2>
+                    <div class="flex items-center justify-center gap-4 text-xs font-bold text-slate-500 pt-1">
+                        <span><i class="fa-solid fa-users text-indigo-500 mr-1"></i>應考人數：<b id="anonReportStudentCount" class="text-slate-800">0</b> 人</span>
+                        <span><i class="fa-solid fa-calculator text-emerald-500 mr-1"></i>全班平均：<b id="anonReportAvgScore" class="text-slate-800">0</b> 分</span>
+                        <span><i class="fa-solid fa-trophy text-amber-500 mr-1"></i>最高分：<b id="anonReportMaxScore" class="text-slate-800">0</b> 分</span>
+                    </div>
+                </div>
+
+                <!-- 1. 大考五標標準卡片 (莫蘭迪色調) -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-award text-amber-600"></i> 一、 大考等級五標標準 (教育部標準 PR 算法)
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                        <div class="p-3 rounded-2xl bg-[#E8EEF5] border border-[#BACCDD] text-center">
+                            <span class="text-xs font-black text-[#4A647A] block">🏆 頂標 (前 12%)</span>
+                            <span class="text-xl font-black text-[#2A3E4E] mt-0.5 block" id="anonValTop">--</span>
+                            <span class="text-[10px] text-[#6E889D] block">PR 88 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#EAF2EB] border border-[#BBD4BE] text-center">
+                            <span class="text-xs font-black text-[#45694C] block">🎯 前標 (前 25%)</span>
+                            <span class="text-xl font-black text-[#233D29] mt-0.5 block" id="anonValHigh">--</span>
+                            <span class="text-[10px] text-[#698E70] block">PR 75 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#F7F1E6] border border-[#DFCEAF] text-center">
+                            <span class="text-xs font-black text-[#7A5F35] block">⚖️ 均標 (前 50%)</span>
+                            <span class="text-xl font-black text-[#4A371B] mt-0.5 block" id="anonValAvg">--</span>
+                            <span class="text-[10px] text-[#9A8158] block">PR 50 中位數</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#EFEAF4] border border-[#C6B7D5] text-center">
+                            <span class="text-xs font-black text-[#5C4A6F] block">🛡️ 後標 (前 75%)</span>
+                            <span class="text-xl font-black text-[#362746] mt-0.5 block" id="anonValLow">--</span>
+                            <span class="text-[10px] text-[#806E92] block">PR 25 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#F8ECEA] border border-[#DEC0BA] text-center col-span-2 sm:col-span-1">
+                            <span class="text-xs font-black text-[#854F46] block">🧱 底標 (前 88%)</span>
+                            <span class="text-xl font-black text-[#53261F] mt-0.5 block" id="anonValBottom">--</span>
+                            <span class="text-[10px] text-[#9D6860] block">PR 12 門檻</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 全班成績組距分佈直方圖 (莫蘭迪色系長條圖) -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-column text-indigo-600"></i> 二、 全班成績組距分佈直方圖
+                        </h4>
+                        <span class="text-[11px] text-slate-500 font-bold">級距人數統計</span>
+                    </div>
+                    <div class="w-full h-52">
+                        <canvas id="anonScoreChartCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- 3. 個別考生匿名成績總榜單 (姓名 OOO 隱私排序：由高至低) -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-ranking-star text-purple-600"></i> 三、 全班考生匿名成績排行榜 (由高至低排序 • 隱私遮罩)
+                        </h4>
+                        <span class="text-[11px] text-slate-400 font-medium">姓名一律以 OOO 遮罩保護個資</span>
+                    </div>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 text-center w-16">名次</th>
+                                    <th class="p-3 text-center">學生姓名</th>
+                                    <th class="p-3 text-center">得分 / 總分</th>
+                                    <th class="p-3 text-center">換算百分比</th>
+                                    <th class="p-3 text-center">大考落點等級</th>
+                                    <th class="p-3 text-center">作答耗時</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anonRankingsTbody" class="divide-y divide-slate-100 font-medium">
+                                <!-- JS 動態生成匿名排名 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
