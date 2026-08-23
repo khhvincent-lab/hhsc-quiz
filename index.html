@@ -10,6 +10,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Chart.js CDN for Radar Chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2canvas CDN (支援將成績單一鍵轉換並下載為高畫質照片) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <!-- Firebase 8.10.1 官方穩定 SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -21,6 +23,12 @@
 <style>
         .hidden {
             display: none !important;
+        }
+
+        /* 避免題目與報表在轉PDF/列印時被跨頁腰斬切割 */
+        .avoid-break, .result-q-item, #fiveStandardsContainer, .report-section {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
         }
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
@@ -269,12 +277,17 @@
                 background-color: white !important;
                 color: black !important;
             }
-            #resultView, #anonymousReportModal {
+            #resultView, #studentScoreReportModal, #teacherScoreReportModal {
                 display: block !important;
                 max-width: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 background-color: white !important;
+            }
+            .result-q-item, .avoid-break {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin-bottom: 14px !important;
             }
             .bg-white, .bg-card-theme {
                 box-shadow: none !important;
@@ -552,8 +565,11 @@
                         <button onclick="generateFiveStandards()" class="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1 whitespace-nowrap">
                             <i class="fa-solid fa-rotate"></i> 重算五標
                         </button>
-                        <button onclick="openAnonymousReportModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-purple-100 transition flex items-center gap-1.5 whitespace-nowrap">
-                            <i class="fa-solid fa-file-invoice"></i> 📊 輸出全班匿名分析單 (OOO)
+                        <button onclick="openStudentScoreReportModal()" class="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-1.5 whitespace-nowrap" title="輸出供學生觀看之五標、組距圖與去識別化成績單">
+                            <i class="fa-solid fa-user-graduate"></i> 📊 學生版全班成績 (OOO)
+                        </button>
+                        <button onclick="openTeacherScoreReportModal()" class="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-1.5 whitespace-nowrap" title="輸出教師專屬之實名成績單、五標與試題錯題深入診斷總表">
+                            <i class="fa-solid fa-chalkboard-user"></i> 🎓 教師版全班成績 (實名+錯題)
                         </button>
                     </div>
                 </div>
@@ -831,6 +847,30 @@
                 <div class="text-right">
                     <span class="text-xs font-bold text-slate-400 block" id="timerLabel">總測驗時間</span>
                     <span class="font-mono text-xl font-black text-indigo-600" id="studentTotalTimer">00:00</span>
+                </div>
+            </div>
+
+            <!-- 題號快速跳題導覽面板 (支援已答/未答/當前題/不確定標記) -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-table-cells text-indigo-600"></i> 題號快速跳題面板
+                    </span>
+                    <div class="flex items-center gap-2.5 text-[11px] font-bold text-slate-500 flex-wrap">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-indigo-600 inline-block"></span> 當前題</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400 inline-block"></span> 標記待檢查</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500 inline-block"></span> 已作答</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-200 inline-block"></span> 未作答</span>
+                    </div>
+                </div>
+                <div id="studentQNavGrid" class="flex flex-wrap gap-2 pt-1">
+                    <!-- JS 動態生成所有題號按鈕 -->
+                </div>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <button type="button" id="btnToggleFlagQ" onclick="toggleFlagCurrentQuestion()" class="px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-bookmark" id="flagIcon"></i> <span id="flagBtnText">標記本題「不確定」（待回頭檢查）</span>
+                    </button>
+                    <span class="text-[11px] text-slate-400 font-medium" id="flaggedCountSummary">已標記 0 題待檢查</span>
                 </div>
             </div>
 
@@ -1382,6 +1422,186 @@
 
 
 
+        
+        // ================= 題目隨機化、導覽面板、不確定標記、自動存檔與斷線復原 =================
+        const AUTOSAVE_STORAGE_KEY = 'hhsc_quiz_ongoing_progress';
+        let flaggedQuestions = {}; // 記錄學生標記不確定待檢查之題目：{ 0: true, 2: true, ... }
+
+        // 題目隨機洗牌演算法 (Fisher-Yates)
+        function shuffleQuestionsArray(arr) {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        // 切換目前題目的「不確定（待檢查）」標記狀態
+        function toggleFlagCurrentQuestion() {
+            if (currentQuestionIdx === undefined) return;
+            flaggedQuestions[currentQuestionIdx] = !flaggedQuestions[currentQuestionIdx];
+            updateFlagButtonUI();
+            renderQuestionNavGrid();
+            autoSaveExamProgress();
+        }
+
+        // 更新題目卡片下方標記按鈕外觀
+        function updateFlagButtonUI() {
+            const isFlagged = !!flaggedQuestions[currentQuestionIdx];
+            const btn = document.getElementById('btnToggleFlagQ');
+            const icon = document.getElementById('flagIcon');
+            const text = document.getElementById('flagBtnText');
+            const summary = document.getElementById('flaggedCountSummary');
+
+            if (btn && icon && text) {
+                if (isFlagged) {
+                    btn.className = "px-3.5 py-1.5 rounded-xl border border-amber-400 bg-amber-400 text-amber-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm";
+                    icon.className = "fa-solid fa-bookmark text-amber-950";
+                    text.innerText = "已標記此題為「不確定」（交卷前請檢查）";
+                } else {
+                    btn.className = "px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold transition flex items-center gap-1.5 shadow-sm";
+                    icon.className = "fa-regular fa-bookmark text-amber-600";
+                    text.innerText = "標記本題「不確定」（待回頭檢查）";
+                }
+            }
+
+            if (summary) {
+                const totalFlagged = Object.values(flaggedQuestions).filter(Boolean).length;
+                summary.innerText = `已標記 ${totalFlagged} 題待檢查`;
+            }
+        }
+
+        // 渲染題號導覽面板 (已答/未答/當前題/不確定標記)
+        function renderQuestionNavGrid() {
+            const container = document.getElementById('studentQNavGrid');
+            if (!container || !currentExamQuiz || !currentExamQuiz.questions) return;
+            container.innerHTML = '';
+
+            currentExamQuiz.questions.forEach((q, idx) => {
+                const isCurrent = (idx === currentQuestionIdx);
+                const isFlagged = !!flaggedQuestions[idx];
+                const hasAnswered = studentAnswers[idx] && studentAnswers[idx].length > 0;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.innerText = `Q${idx + 1}`;
+                
+                let btnClass = "w-10 h-10 rounded-xl text-xs font-black transition shadow-sm ";
+                if (isCurrent) {
+                    btnClass += "bg-indigo-600 text-white ring-2 ring-indigo-400 ring-offset-2";
+                } else if (isFlagged) {
+                    btnClass += "bg-amber-400 text-amber-950 hover:bg-amber-500 font-black border border-amber-500";
+                } else if (hasAnswered) {
+                    btnClass += "bg-emerald-500 text-white hover:bg-emerald-600";
+                } else {
+                    btnClass += "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200";
+                }
+
+                btn.className = btnClass;
+                btn.onclick = () => jumpToQuestion(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        // 快速跳題
+        function jumpToQuestion(qIndex) {
+            if (!currentExamQuiz || qIndex < 0 || qIndex >= currentExamQuiz.questions.length) return;
+            renderStudentQuestion(qIndex);
+            autoSaveExamProgress();
+        }
+
+        // 自動存檔
+        function autoSaveExamProgress() {
+            if (!currentExamQuiz) return;
+            const payload = {
+                quizId: currentExamQuiz.id,
+                grade: currentExamQuiz.grade,
+                quizTitle: currentExamQuiz.title,
+                studentName: studentCurrentName,
+                questions: currentExamQuiz.questions,
+                currentQuestionIdx: currentQuestionIdx,
+                studentAnswers: studentAnswers,
+                flaggedQuestions: flaggedQuestions,
+                questionTimeSpent: questionTimeSpent,
+                changeHistoryLogs: changeHistoryLogs,
+                examElapsedSeconds: examElapsedSeconds,
+                remainingSeconds: remainingSeconds,
+                lastSavedAt: Date.now()
+            };
+            try { localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(payload)); } catch(e) {}
+        }
+
+        // 清除作答暫存
+        function clearExamProgress() {
+            try { localStorage.removeItem(AUTOSAVE_STORAGE_KEY); } catch(e) {}
+        }
+
+        // 斷線與重整復原偵測
+        function checkForExamRecovery() {
+            try {
+                const raw = localStorage.getItem(AUTOSAVE_STORAGE_KEY);
+                if (!raw) return false;
+                const saved = JSON.parse(raw);
+                if (Date.now() - (saved.lastSavedAt || 0) < 7200000 && saved.quizId) {
+                    if (confirm(`【系統偵測】您有未完成的測驗【${saved.quizTitle}】！\n\n考生姓名：${saved.studentName}\n最後進度：第 ${saved.currentQuestionIdx + 1} 題\n\n是否立即還原作答進度繼續測驗？`)) {
+                        studentCurrentName = saved.studentName;
+                        studentSelectedGrade = saved.grade || 'g1';
+                        studentSelectedQuizId = saved.quizId;
+                        
+                        currentExamQuiz = {
+                            id: saved.quizId,
+                            grade: saved.grade,
+                            title: saved.quizTitle,
+                            questions: saved.questions,
+                            timerMode: saved.remainingSeconds !== undefined ? 'countdown' : 'countup'
+                        };
+                        currentQuestionIdx = saved.currentQuestionIdx || 0;
+                        studentAnswers = saved.studentAnswers || {};
+                        flaggedQuestions = saved.flaggedQuestions || {};
+                        questionTimeSpent = saved.questionTimeSpent || {};
+                        changeHistoryLogs = saved.changeHistoryLogs || [];
+                        examElapsedSeconds = saved.examElapsedSeconds || 0;
+                        remainingSeconds = saved.remainingSeconds || 600;
+
+                        document.getElementById('studentPortalView').classList.add('hidden');
+                        document.getElementById('instructionsView').classList.add('hidden');
+                        document.getElementById('studentView').classList.remove('hidden');
+
+                        document.getElementById('studentExamHeaderGradeTag').innerText = getGradeName(currentExamQuiz.grade);
+                        document.getElementById('studentExamHeaderNameTag').innerText = `考生：${studentCurrentName}`;
+                        document.getElementById('headerSystemTitle').innerText = currentExamQuiz.title;
+
+                        startTimers();
+                        renderStudentQuestion(currentQuestionIdx);
+                        return true;
+                    } else {
+                        clearExamProgress();
+                    }
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        // 匯出 CSV 報表
+        function exportSubmissionsCSV() {
+            if (!studentSubmissionsDB || studentSubmissionsDB.length === 0) {
+                alert("目前無資料可匯出！");
+                return;
+            }
+            let csv = "繳卷時間,學生姓名,班級,考卷名稱,得分,總分,換算百分比,總耗時(秒),修改答案次數\n";
+            studentSubmissionsDB.forEach(s => {
+                const pct = Math.round((s.score / (s.totalQuestions || 1)) * 100);
+                csv += `"${s.submitTime}","${s.studentName}","${getGradeName(s.grade)}","${s.quizTitle}",${s.score},${s.totalQuestions},${pct}%,${s.totalElapsedSeconds},${s.revisionCount || 0}\n`;
+            });
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `測驗作答數據_${Date.now()}.csv`;
+            link.click();
+        }
+
+
         // ================= 0. 學生入口頁面邏輯 =================
                 function switchToStudentPortal() {
             clearInterval(timerInterval);
@@ -1591,8 +1811,13 @@
 
             currentExamQuiz = JSON.parse(JSON.stringify(quiz));
 
+            // 1. 題目順序隨機化 (保留原始索引以利計分與錯題深度診斷)
+            const mappedQuestions = currentExamQuiz.questions.map((q, idx) => ({ ...q, origIdx: idx }));
+            currentExamQuiz.questions = shuffleQuestionsArray(mappedQuestions);
+
             currentQuestionIdx = 0;
             studentAnswers = {};
+            flaggedQuestions = {};
             questionTimeSpent = {};
             changeHistoryLogs = [];
             examElapsedSeconds = 0;
@@ -1608,6 +1833,7 @@
 
             startTimers();
             renderStudentQuestion(0);
+            autoSaveExamProgress();
         }
 
         // ================= 1. 管理者後台邏輯 =================
@@ -2298,7 +2524,7 @@
                 }
 
                 const item = document.createElement('div');
-                item.className = `p-4 md:p-5 rounded-2xl border ${isCorrect ? 'border-emerald-200 bg-emerald-50/10' : 'border-rose-200 bg-rose-50/10'} space-y-3`;
+                item.className = `result-q-item avoid-break p-4 md:p-5 rounded-2xl border ${isCorrect ? 'border-emerald-200 bg-emerald-50/10' : 'border-rose-200 bg-rose-50/10'} space-y-3`;
                 item.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div class="flex flex-wrap items-center gap-2">
@@ -2347,18 +2573,18 @@
                     : '<div class="text-slate-400">本場考試無任何修改答案紀錄，答題果斷。</div>';
 
                 footerActions.innerHTML = `
-                    <button onclick="exportStudentResultPDF()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-100 transition flex items-center gap-2">
-                        <i class="fa-solid fa-file-pdf text-base"></i> 下載 / 匯出此考生診斷報表 (PDF)
+                    <button onclick="promptExportChoice('resultView', '考生診斷報表_${sub.studentName}', '【個別考生診斷單】${sub.studentName}')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-down text-base"></i> 匯出此考生診斷單 (PDF / 照片)
                     </button>
-                    <button onclick="switchToDashboard(); selectAdminTab('results');" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100 transition flex items-center gap-1.5">
+                    <button onclick="switchToDashboard(); selectAdminTab('results');" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm shadow-md transition flex items-center gap-1.5">
                         <i class="fa-solid fa-arrow-left"></i> 返回學生作答數據庫
                     </button>
                 `;
             } else {
                 teacherWrap.classList.add('hidden');
                 footerActions.innerHTML = `
-                    <button onclick="exportStudentResultPDF()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-100 transition flex items-center gap-2">
-                        <i class="fa-solid fa-file-pdf text-base"></i> 下載 / 匯出 PDF 成績診斷單
+                    <button onclick="promptExportChoice('resultView', '個人小考診斷單_${studentCurrentName}', '【小考成績診斷單】${studentCurrentName}')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-md shadow-emerald-100 transition flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-down text-base"></i> 匯出成績診斷單 (PDF / 照片)
                     </button>
                     <button onclick="switchToStudentPortal()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-100 transition flex items-center gap-1.5">
                         <i class="fa-solid fa-arrow-left"></i> 返回測驗首頁
@@ -2504,37 +2730,95 @@
             alert(`🎉 已成功刪除【${studentName}】的作答紀錄，雲端已即時同步更新！`);
         }
 
-        // ================= 輸出全班匿名分析單 (五標 + 莫蘭迪組距圖 + 姓名 OOO 隱私排序) =================
-        let anonChartInstance = null;
+        // ================= 智慧輸出引擎：PDF 列印 & 高畫質長圖照片 (PNG) 下載 =================
+        let currentExportConfig = {
+            elementId: 'resultView',
+            fileName: '測驗診斷單',
+            printTitle: '【小考成績診斷單】'
+        };
 
-        function openAnonymousReportModal() {
-            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
+        function promptExportChoice(elementId, fileName, printTitle) {
+            currentExportConfig = { elementId, fileName, printTitle };
+            const m = document.getElementById('exportChoiceModal');
+            if (m) m.classList.remove('hidden');
+        }
 
+        function closeExportChoiceModal() {
+            const m = document.getElementById('exportChoiceModal');
+            if (m) m.classList.add('hidden');
+        }
+
+        async function executeExportChoice(format) {
+            closeExportChoiceModal();
+            const config = currentExportConfig;
+            const targetEl = document.getElementById(config.elementId);
+            if (!targetEl) return;
+
+            if (format === 'pdf') {
+                const origTitle = document.title;
+                document.title = config.printTitle;
+                window.print();
+                setTimeout(() => { document.title = origTitle; }, 1000);
+            } else if (format === 'image') {
+                try {
+                    const toast = document.createElement('div');
+                    toast.id = 'exportLoadingToast';
+                    toast.className = 'fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 text-white font-bold text-sm';
+                    toast.innerHTML = `<div class="bg-slate-900 p-5 rounded-2xl flex items-center gap-3 border border-slate-700 shadow-2xl"><div class="w-6 h-6 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div> 正在生成高解析長圖照片中，請稍候...</div>`;
+                    document.body.appendChild(toast);
+
+                    const canvas = await html2canvas(targetEl, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#FFFFFF',
+                        logging: false
+                    });
+
+                    toast.remove();
+
+                    const link = document.createElement('a');
+                    link.download = `${config.fileName}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch(err) {
+                    console.error("生成照片失敗:", err);
+                    const toast = document.getElementById('exportLoadingToast');
+                    if (toast) toast.remove();
+                    alert("生成照片失敗，建議改用以 PDF 格式儲存！");
+                }
+            }
+        }
+
+        // ================= 雙版本報表：學生版 (去識別化) & 教師版 (實名+錯題分析) =================
+        let studentChartInstance = null;
+        let teacherChartInstance = null;
+
+        // 共用五標計算與過濾
+        function getFilteredExamStats() {
+            let gradeRecords = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
+            if (gradeRecords.length === 0) {
+                alert(`⚠️ 目前【${getGradeName(activeResultsFilterGrade)}】尚無任何學生繳卷紀錄！無法產生全班分析單。`);
+                return null;
+            }
+
+            let filtered = gradeRecords;
+            const currentQuiz = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
             if (activeResultsFilterQuizId) {
-                filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
-            }
-
-            if (filtered.length === 0) {
-                alert("⚠️ 目前所選的班級/考卷尚無任何學生作答繳卷紀錄，無法產生分析單！");
-                return;
-            }
-
-            // 取得考卷標題與班級
-            let quizTitle = "全班綜合測驗總評量";
-            let gradeTitle = (activeResultsFilterGrade !== 'all') ? getGradeName(activeResultsFilterGrade) : "全部班級";
-            if (activeResultsFilterQuizId !== 'all') {
-                const qObj = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
-                if (qObj) {
-                    quizTitle = qObj.title;
-                    gradeTitle = getGradeName(qObj.grade);
+                const quizFiltered = gradeRecords.filter(s => s.quizId === activeResultsFilterQuizId);
+                if (quizFiltered.length > 0) {
+                    filtered = quizFiltered;
+                } else {
+                    console.warn("目前選定考卷無紀錄，採用該班級綜合數據");
                 }
             }
 
-            document.getElementById('anonReportGradeTag').innerText = gradeTitle;
-            document.getElementById('anonReportQuizTitle').innerText = quizTitle;
-            document.getElementById('anonReportStudentCount').innerText = filtered.length;
+            let quizTitle = "全班綜合測驗總評量";
+            let gradeTitle = getGradeName(activeResultsFilterGrade);
+            if (currentQuiz) {
+                quizTitle = currentQuiz.title;
+                gradeTitle = getGradeName(currentQuiz.grade);
+            }
 
-            // 計算平均與最高分
             const pctScores = filtered.map(s => {
                 const earned = s.score || 0;
                 const total = s.totalQuestions || 100;
@@ -2543,10 +2827,6 @@
             const avg = Math.round(pctScores.reduce((a, b) => a + b, 0) / pctScores.length);
             const max = Math.max(...pctScores);
 
-            document.getElementById('anonReportAvgScore').innerText = avg;
-            document.getElementById('anonReportMaxScore').innerText = max;
-
-            // 計算大考五標
             const sortedAsc = [...pctScores].sort((a, b) => a - b);
             const N = sortedAsc.length;
             function getP(p) {
@@ -2564,13 +2844,6 @@
             const lowStd = getP(25);
             const bottomStd = getP(12);
 
-            document.getElementById('anonValTop').innerText = `${topStd} 分`;
-            document.getElementById('anonValHigh').innerText = `${highStd} 分`;
-            document.getElementById('anonValAvg').innerText = `${avgStd} 分`;
-            document.getElementById('anonValLow').innerText = `${lowStd} 分`;
-            document.getElementById('anonValBottom').innerText = `${bottomStd} 分`;
-
-            // 計算 5 個莫蘭迪組距
             const bins = [0, 0, 0, 0, 0];
             pctScores.forEach(score => {
                 if (score < 60) bins[0]++;
@@ -2580,34 +2853,65 @@
                 else bins[4]++;
             });
 
-            renderAnonDistributionChart(bins);
-
-            // 產生姓名 OOO 匿名由高至低排行榜
             const sortedDescSubmissions = [...filtered].sort((a, b) => {
                 const pctA = (a.score / (a.totalQuestions || 1));
                 const pctB = (b.score / (b.totalQuestions || 1));
                 if (pctB !== pctA) return pctB - pctA;
-                return (a.totalElapsedSeconds || 0) - (b.totalElapsedSeconds || 0); // 分數相同者比時間少
+                return (a.totalElapsedSeconds || 0) - (b.totalElapsedSeconds || 0);
             });
 
-            const tbody = document.getElementById('anonRankingsTbody');
-            tbody.innerHTML = '';
+            return {
+                filtered,
+                quiz: currentQuiz,
+                quizTitle,
+                gradeTitle,
+                count: filtered.length,
+                avg,
+                max,
+                topStd,
+                highStd,
+                avgStd,
+                lowStd,
+                bottomStd,
+                bins,
+                sortedDescSubmissions
+            };
+        }
 
-            sortedDescSubmissions.forEach((sub, rankIdx) => {
+        // 1. 打開「學生版全班成績單」
+        function openStudentScoreReportModal() {
+            const stats = getFilteredExamStats();
+            if (!stats) return;
+
+            document.getElementById('stuReportGradeTag').innerText = stats.gradeTitle;
+            document.getElementById('stuReportQuizTitle').innerText = stats.quizTitle;
+            document.getElementById('stuReportStudentCount').innerText = stats.count;
+            document.getElementById('stuReportAvgScore').innerText = stats.avg;
+            document.getElementById('stuReportMaxScore').innerText = stats.max;
+
+            document.getElementById('stuValTop').innerText = `${stats.topStd} 分`;
+            document.getElementById('stuValHigh').innerText = `${stats.highStd} 分`;
+            document.getElementById('stuValAvg').innerText = `${stats.avgStd} 分`;
+            document.getElementById('stuValLow').innerText = `${stats.lowStd} 分`;
+            document.getElementById('stuValBottom').innerText = `${stats.bottomStd} 分`;
+
+            renderReportChart('stuScoreChartCanvas', stats.bins, 'student');
+
+            const tbody = document.getElementById('stuRankingsTbody');
+            tbody.innerHTML = '';
+            stats.sortedDescSubmissions.forEach((sub, rankIdx) => {
                 const rank = rankIdx + 1;
                 const pct = Math.round((sub.score / (sub.totalQuestions || 1)) * 100);
 
-                // 判斷五標落點標籤
-                let rankTier = "後標段";
-                let tierBadge = "bg-amber-100 text-amber-800";
-                if (pct >= topStd) { rankTier = "頂標段"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
-                else if (pct >= highStd) { rankTier = "前標段"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
-                else if (pct >= avgStd) { rankTier = "均標段"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
-                else if (pct >= lowStd) { rankTier = "後標段"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
-                else { rankTier = "底標段"; tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold"; }
+                let rankTier = "底標";
+                let tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold";
+                if (pct >= stats.topStd) { rankTier = "頂標"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
+                else if (pct >= stats.highStd) { rankTier = "前標"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
+                else if (pct >= stats.avgStd) { rankTier = "均標"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
+                else if (pct >= stats.lowStd) { rankTier = "後標"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
 
                 const tr = document.createElement('tr');
-                tr.className = rank <= 3 ? "bg-amber-50/40 font-bold" : "hover:bg-slate-50";
+                tr.className = rank <= 3 ? "bg-amber-50/40 font-bold avoid-break" : "hover:bg-slate-50 avoid-break";
 
                 let medal = `${rank}`;
                 if (rank === 1) medal = '🥇 1';
@@ -2629,23 +2933,153 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('anonymousReportModal').classList.remove('hidden');
+            const m = document.getElementById('studentScoreReportModal');
+            if (m) m.classList.remove('hidden');
         }
 
-        function closeAnonymousReportModal() {
-            document.getElementById('anonymousReportModal').classList.add('hidden');
+        function closeStudentScoreReportModal() {
+            const m = document.getElementById('studentScoreReportModal');
+            if (m) m.classList.add('hidden');
         }
 
-        function renderAnonDistributionChart(bins) {
-            const ctx = document.getElementById('anonScoreChartCanvas');
-            if (!ctx) return;
+        // 2. 打開「教師版全班成績單」
+        function openTeacherScoreReportModal() {
+            const stats = getFilteredExamStats();
+            if (!stats) return;
 
-            if (anonChartInstance) {
-                anonChartInstance.destroy();
+            document.getElementById('tchReportGradeTag').innerText = stats.gradeTitle;
+            document.getElementById('tchReportQuizTitle').innerText = stats.quizTitle;
+            document.getElementById('tchReportStudentCount').innerText = stats.count;
+            document.getElementById('tchReportAvgScore').innerText = stats.avg;
+            document.getElementById('tchReportMaxScore').innerText = stats.max;
+
+            document.getElementById('tchValTop').innerText = `${stats.topStd} 分`;
+            document.getElementById('tchValHigh').innerText = `${stats.highStd} 分`;
+            document.getElementById('tchValAvg').innerText = `${stats.avgStd} 分`;
+            document.getElementById('tchValLow').innerText = `${stats.lowStd} 分`;
+            document.getElementById('tchValBottom').innerText = `${stats.bottomStd} 分`;
+
+            renderReportChart('tchScoreChartCanvas', stats.bins, 'teacher');
+
+            // 渲染錯題診斷分析
+            const diagTbody = document.getElementById('tchDiagnosticReportTbody');
+            diagTbody.innerHTML = '';
+            if (stats.quiz && stats.quiz.questions) {
+                const optLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                stats.quiz.questions.forEach((q, qIdx) => {
+                    let wrongCount = 0;
+                    let totalTime = 0;
+                    const optPick = {};
+                    q.options.forEach((_, oi) => { optPick[oi] = 0; });
+
+                    stats.filtered.forEach(sub => {
+                        const uAns = sub.studentAnswers ? (sub.studentAnswers[qIdx] || []) : [];
+                        const tSpent = sub.questionTimeSpent ? (sub.questionTimeSpent[qIdx] || 0) : 0;
+                        totalTime += tSpent;
+                        const isC = (q.correctAnswers.length === uAns.length) && q.correctAnswers.every((val, i) => val === uAns[i]);
+                        if (!isC) wrongCount++;
+                        uAns.forEach(o => { if (optPick[o] !== undefined) optPick[o]++; });
+                    });
+
+                    const errorRate = Math.round((wrongCount / stats.count) * 100);
+                    const correctRate = 100 - errorRate;
+                    const avgT = Math.round(totalTime / stats.count);
+
+                    let maxWrongOpt = null;
+                    let maxWrongCount = 0;
+                    Object.keys(optPick).forEach(oi => {
+                        const idxNum = parseInt(oi);
+                        if (!q.correctAnswers.includes(idxNum) && optPick[idxNum] > maxWrongCount) {
+                            maxWrongCount = optPick[idxNum];
+                            maxWrongOpt = idxNum;
+                        }
+                    });
+
+                    let trapStr = "無顯著誘答";
+                    if (maxWrongOpt !== null && maxWrongCount > 0) {
+                        const pctW = Math.round((maxWrongCount / stats.count) * 100);
+                        trapStr = `<span class="text-rose-600 font-bold">誤選 ${optLabels[maxWrongOpt]} (${pctW}%人)</span>`;
+                    }
+
+                    let adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✓ 掌握良好</span>`;
+                    if (errorRate >= 50) adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">🚨 建議必重講</span>`;
+                    else if (errorRate >= 30) adviceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⚠️ 重點提示</span>`;
+
+                    const dTr = document.createElement('tr');
+                    dTr.className = errorRate >= 50 ? "bg-rose-50/20 avoid-break" : "hover:bg-slate-50 avoid-break";
+                    dTr.innerHTML = `
+                        <td class="p-2.5 text-center font-bold font-mono">Q${qIdx + 1}</td>
+                        <td class="p-2.5">
+                            <div class="font-bold text-slate-800 line-clamp-1">${escapeHtml(q.text)}</div>
+                            <div class="text-[11px] text-slate-400 font-medium">觀念：${q.skill || '綜合'} | 題型：${q.category || '觀念'}</div>
+                        </td>
+                        <td class="p-2.5 text-center font-bold text-emerald-600">${correctRate}%</td>
+                        <td class="p-2.5 text-center font-black ${errorRate >= 50 ? 'text-rose-600' : 'text-slate-700'}">${errorRate}%</td>
+                        <td class="p-2.5 text-center font-bold text-slate-700">${wrongCount}人</td>
+                        <td class="p-2.5 text-center font-mono text-slate-600">${avgT}秒</td>
+                        <td class="p-2.5 text-center text-xs">${trapStr}</td>
+                        <td class="p-2.5 text-center">${adviceBadge}</td>
+                    `;
+                    diagTbody.appendChild(dTr);
+                });
             }
 
-            // 莫蘭迪高質感配色
-            anonChartInstance = new Chart(ctx, {
+            // 渲染實名排行榜
+            const tchTbody = document.getElementById('tchRankingsTbody');
+            tchTbody.innerHTML = '';
+            stats.sortedDescSubmissions.forEach((sub, rankIdx) => {
+                const rank = rankIdx + 1;
+                const pct = Math.round((sub.score / (sub.totalQuestions || 1)) * 100);
+
+                let rankTier = "底標";
+                let tierBadge = "bg-[#F8ECEA] text-[#53261F] font-bold";
+                if (pct >= stats.topStd) { rankTier = "頂標"; tierBadge = "bg-[#E8EEF5] text-[#2A3E4E] font-bold"; }
+                else if (pct >= stats.highStd) { rankTier = "前標"; tierBadge = "bg-[#EAF2EB] text-[#233D29] font-bold"; }
+                else if (pct >= stats.avgStd) { rankTier = "均標"; tierBadge = "bg-[#F7F1E6] text-[#4A371B] font-bold"; }
+                else if (pct >= stats.lowStd) { rankTier = "後標"; tierBadge = "bg-[#EFEAF4] text-[#362746] font-bold"; }
+
+                const tr = document.createElement('tr');
+                tr.className = rank <= 3 ? "bg-purple-50/30 font-bold avoid-break" : "hover:bg-slate-50 avoid-break";
+
+                let medal = `${rank}`;
+                if (rank === 1) medal = '🥇 1';
+                else if (rank === 2) medal = '🥈 2';
+                else if (rank === 3) medal = '🥉 3';
+
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-mono text-sm">${medal}</td>
+                    <td class="p-3 text-center font-bold text-slate-900">${escapeHtml(sub.studentName)}</td>
+                    <td class="p-3 text-center font-bold text-indigo-950">${sub.score} / ${sub.totalQuestions} 分</td>
+                    <td class="p-3 text-center">
+                        <span class="px-2.5 py-0.5 rounded-full font-black text-xs ${pct >= 60 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${pct}%
+                        </span>
+                    </td>
+                    <td class="p-3 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs ${tierBadge}">${rankTier}</span></td>
+                    <td class="p-3 text-center font-bold text-slate-600">${sub.revisionCount || 0} 次</td>
+                    <td class="p-3 text-center font-mono text-slate-500">${formatTime(sub.totalElapsedSeconds)}</td>
+                `;
+                tchTbody.appendChild(tr);
+            });
+
+            const m = document.getElementById('teacherScoreReportModal');
+            if (m) m.classList.remove('hidden');
+        }
+
+        function closeTeacherScoreReportModal() {
+            const m = document.getElementById('teacherScoreReportModal');
+            if (m) m.classList.add('hidden');
+        }
+
+        // 直方圖繪製共用函式
+        function renderReportChart(canvasId, bins, type) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            if (type === 'student' && studentChartInstance) studentChartInstance.destroy();
+            if (type === 'teacher' && teacherChartInstance) teacherChartInstance.destroy();
+
+            const chartInst = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['0~59分', '60~69分', '70~79分', '80~89分', '90~100分'],
@@ -2653,19 +3087,13 @@
                         label: '人數',
                         data: bins,
                         backgroundColor: [
-                            'rgba(184, 124, 114, 0.85)', // 莫蘭迪陶土粉
-                            'rgba(176, 141, 91, 0.85)',  // 莫蘭迪暖棕黃
-                            'rgba(135, 119, 149, 0.85)', // 莫蘭迪灰粉紫
-                            'rgba(112, 133, 156, 0.85)', // 莫蘭迪霧霾藍
-                            'rgba(108, 140, 116, 0.85)'  // 莫蘭迪鼠尾草綠
+                            'rgba(184, 124, 114, 0.85)',
+                            'rgba(176, 141, 91, 0.85)',
+                            'rgba(135, 119, 149, 0.85)',
+                            'rgba(112, 133, 156, 0.85)',
+                            'rgba(108, 140, 116, 0.85)'
                         ],
-                        borderColor: [
-                            '#854f46',
-                            '#7a5f35',
-                            '#5c4a6f',
-                            '#4a647a',
-                            '#45694c'
-                        ],
+                        borderColor: ['#854f46', '#7a5f35', '#5c4a6f', '#4a647a', '#45694c'],
                         borderWidth: 1.5,
                         borderRadius: 8
                     }]
@@ -2688,26 +3116,15 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    return ` 人數: ${context.raw} 人`;
-                                }
+                                label: function(c) { return ` 人數: ${c.raw} 人`; }
                             }
                         }
                     }
                 }
             });
-        }
 
-        function printAnonymousReport() {
-            const origTitle = document.title;
-            const quizTitle = document.getElementById('anonReportQuizTitle').innerText;
-            const gradeTitle = document.getElementById('anonReportGradeTag').innerText;
-            const now = new Date();
-            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-
-            document.title = `【全班匿名成績分析單】${gradeTitle}_${quizTitle}_${dateStr}`;
-            window.print();
-            setTimeout(() => { document.title = origTitle; }, 1000);
+            if (type === 'student') studentChartInstance = chartInst;
+            if (type === 'teacher') teacherChartInstance = chartInst;
         }
 
 
@@ -3482,6 +3899,10 @@
                 document.getElementById('btnNextQ').classList.remove('hidden');
                 document.getElementById('btnSubmitExam').classList.add('hidden');
             }
+
+            updateFlagButtonUI();
+            renderQuestionNavGrid();
+            autoSaveExamProgress();
         }
 
         function handleStudentSelect(qIndex, optIdx) {
@@ -3524,6 +3945,8 @@
 
             studentAnswers[qIndex] = newSelected;
             renderStudentQuestion(qIndex);
+            renderQuestionNavGrid();
+            autoSaveExamProgress();
         }
 
         function prevQuestion() {
@@ -3627,6 +4050,7 @@
             try { localStorage.setItem('hhsc_quiz_subs_v17', JSON.stringify(studentSubmissionsDB)); } catch(e) {}
             sendRecordToFirebase(submissionRecord);
 
+            clearExamProgress();
             document.getElementById('studentView').classList.add('hidden');
             document.getElementById('resultView').classList.remove('hidden');
 
@@ -3982,97 +4406,85 @@
     </div>
 
 
-    <!-- 全班成績匿名分析單 (五標 + 組距圖 + 姓名 OOO 隱私排序) Modal -->
-    <div id="anonymousReportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 fade-in overflow-y-auto">
+    <!-- 1. 學生版全班成績單 (純文字無icon五標 + 組距圖 + 姓名 OOO 遮罩) Modal -->
+    <div id="studentScoreReportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 fade-in overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
-            <!-- 彈窗頂部工具列 -->
             <div class="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 no-print">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shadow-sm">
-                        <i class="fa-solid fa-chart-pie"></i>
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg shadow-sm">
+                        <i class="fa-solid fa-user-graduate"></i>
                     </div>
                     <div>
-                        <h3 class="text-base sm:text-lg font-black text-slate-900">全班成績分析與匿名排行榜報告</h3>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">全班成績分析總表（學生公告版）</h3>
                         <p class="text-xs text-slate-500">大考五標 • 莫蘭迪組距分佈圖 • 姓名隱私 OOO 排名</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="printAnonymousReport()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5">
-                        <i class="fa-solid fa-print"></i> 列印 / 匯出 PDF
+                    <button onclick="promptExportChoice('studentReportPrintArea', '學生版全班成績單', '【學生版全班成績單】')" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> 匯出成績單 (PDF / 照片)
                     </button>
-                    <button onclick="closeAnonymousReportModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold">
+                    <button onclick="closeStudentScoreReportModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- 報表內容本體 (可滾動列印區) -->
-            <div class="p-4 sm:p-8 overflow-y-auto space-y-6 text-slate-800" id="anonymousReportPrintArea">
-                <!-- 報表抬頭資訊 -->
-                <div class="text-center space-y-1.5 border-b pb-5 border-slate-200">
-                    <span class="text-xs font-black tracking-widest px-3 py-1 rounded-full bg-slate-100 text-slate-600 uppercase" id="anonReportGradeTag">高雄高一班</span>
-                    <h2 class="text-xl sm:text-2xl font-black text-slate-900" id="anonReportQuizTitle">考卷名稱</h2>
+            <div class="p-4 sm:p-8 overflow-y-auto space-y-6 text-slate-800" id="studentReportPrintArea">
+                <div class="text-center space-y-1.5 border-b pb-5 border-slate-200 avoid-break">
+                    <span class="text-xs font-black tracking-widest px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 uppercase" id="stuReportGradeTag">高雄高一班</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900" id="stuReportQuizTitle">考卷名稱</h2>
                     <div class="flex items-center justify-center gap-4 text-xs font-bold text-slate-500 pt-1">
-                        <span><i class="fa-solid fa-users text-indigo-500 mr-1"></i>應考人數：<b id="anonReportStudentCount" class="text-slate-800">0</b> 人</span>
-                        <span><i class="fa-solid fa-calculator text-emerald-500 mr-1"></i>全班平均：<b id="anonReportAvgScore" class="text-slate-800">0</b> 分</span>
-                        <span><i class="fa-solid fa-trophy text-amber-500 mr-1"></i>最高分：<b id="anonReportMaxScore" class="text-slate-800">0</b> 分</span>
+                        <span><i class="fa-solid fa-users text-indigo-500 mr-1"></i>應考人數：<b id="stuReportStudentCount" class="text-slate-800">0</b> 人</span>
+                        <span><i class="fa-solid fa-calculator text-emerald-500 mr-1"></i>全班平均：<b id="stuReportAvgScore" class="text-slate-800">0</b> 分</span>
+                        <span><i class="fa-solid fa-trophy text-amber-500 mr-1"></i>最高分：<b id="stuReportMaxScore" class="text-slate-800">0</b> 分</span>
                     </div>
                 </div>
 
-                <!-- 1. 大考五標標準卡片 (莫蘭迪色調) -->
-                <div class="space-y-2">
-                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-award text-amber-600"></i> 一、 大考等級五標標準 (教育部標準 PR 算法)
-                    </h4>
+                <div class="space-y-2 avoid-break">
+                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">一、 大考等級五標標準</h4>
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                         <div class="p-3 rounded-2xl bg-[#E8EEF5] border border-[#BACCDD] text-center">
                             <span class="text-xs font-black text-[#4A647A] block tracking-wider">頂標 (前 12%)</span>
-                            <span class="text-xl font-black text-[#2A3E4E] mt-0.5 block" id="anonValTop">--</span>
+                            <span class="text-xl font-black text-[#2A3E4E] mt-0.5 block" id="stuValTop">--</span>
                             <span class="text-[10px] text-[#6E889D] block">PR 88 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#EAF2EB] border border-[#BBD4BE] text-center">
                             <span class="text-xs font-black text-[#45694C] block tracking-wider">前標 (前 25%)</span>
-                            <span class="text-xl font-black text-[#233D29] mt-0.5 block" id="anonValHigh">--</span>
+                            <span class="text-xl font-black text-[#233D29] mt-0.5 block" id="stuValHigh">--</span>
                             <span class="text-[10px] text-[#698E70] block">PR 75 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#F7F1E6] border border-[#DFCEAF] text-center">
                             <span class="text-xs font-black text-[#7A5F35] block tracking-wider">均標 (前 50%)</span>
-                            <span class="text-xl font-black text-[#4A371B] mt-0.5 block" id="anonValAvg">--</span>
+                            <span class="text-xl font-black text-[#4A371B] mt-0.5 block" id="stuValAvg">--</span>
                             <span class="text-[10px] text-[#9A8158] block">PR 50 中位數</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#EFEAF4] border border-[#C6B7D5] text-center">
                             <span class="text-xs font-black text-[#5C4A6F] block tracking-wider">後標 (前 75%)</span>
-                            <span class="text-xl font-black text-[#362746] mt-0.5 block" id="anonValLow">--</span>
+                            <span class="text-xl font-black text-[#362746] mt-0.5 block" id="stuValLow">--</span>
                             <span class="text-[10px] text-[#806E92] block">PR 25 門檻</span>
                         </div>
                         <div class="p-3 rounded-2xl bg-[#F8ECEA] border border-[#DEC0BA] text-center col-span-2 sm:col-span-1">
                             <span class="text-xs font-black text-[#854F46] block tracking-wider">底標 (前 88%)</span>
-                            <span class="text-xl font-black text-[#53261F] mt-0.5 block" id="anonValBottom">--</span>
+                            <span class="text-xl font-black text-[#53261F] mt-0.5 block" id="stuValBottom">--</span>
                             <span class="text-[10px] text-[#9D6860] block">PR 12 門檻</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2. 全班成績組距分佈直方圖 (莫蘭迪色系長條圖) -->
-                <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 avoid-break">
                     <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                            <i class="fa-solid fa-chart-column text-indigo-600"></i> 二、 全班成績組距分佈直方圖
-                        </h4>
+                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">二、 全班成績組距分佈直方圖</h4>
                         <span class="text-[11px] text-slate-500 font-bold">級距人數統計</span>
                     </div>
                     <div class="w-full h-52">
-                        <canvas id="anonScoreChartCanvas"></canvas>
+                        <canvas id="stuScoreChartCanvas"></canvas>
                     </div>
                 </div>
 
-                <!-- 3. 個別考生匿名成績總榜單 (姓名 OOO 隱私排序：由高至低) -->
-                <div class="space-y-2">
+                <div class="space-y-2 avoid-break">
                     <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                            <i class="fa-solid fa-ranking-star text-purple-600"></i> 三、 全班考生匿名成績排行榜 (由高至低排序 • 隱私遮罩)
-                        </h4>
-                        <span class="text-[11px] text-slate-400 font-medium">姓名一律以 OOO 遮罩保護個資</span>
+                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">三、 全班考生匿名成績排行榜 (由高至低排序)</h4>
+                        <span class="text-[11px] text-slate-400 font-medium">姓名已進行 OOO 隱私遮罩</span>
                     </div>
                     <div class="overflow-x-auto rounded-2xl border border-slate-200">
                         <table class="w-full text-left text-xs">
@@ -4082,14 +4494,173 @@
                                     <th class="p-3 text-center">學生姓名</th>
                                     <th class="p-3 text-center">得分 / 總分</th>
                                     <th class="p-3 text-center">換算百分比</th>
-                                    <th class="p-3 text-center">大考落點等級</th>
+                                    <th class="p-3 text-center">落點等級</th>
                                     <th class="p-3 text-center">作答耗時</th>
                                 </tr>
                             </thead>
-                            <tbody id="anonRankingsTbody" class="divide-y divide-slate-100 font-medium">
-                                <!-- JS 動態生成匿名排名 -->
-                            </tbody>
+                            <tbody id="stuRankingsTbody" class="divide-y divide-slate-100 font-medium"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 教師版全班成績單 (實名姓名 + 完整五標 + 組距圖 + 試題錯題雷區深入診斷總表) Modal -->
+    <div id="teacherScoreReportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 fade-in overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <div class="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg shadow-sm">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900">全班成績分析總表（教師專業版 • 實名 + 錯題診斷）</h3>
+                        <p class="text-xs text-slate-500">實名成績榜 • 大考五標 • 組距分佈 • 試題高頻雷區深度診斷</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="promptExportChoice('teacherReportPrintArea', '教師版全班成績單', '【教師版全班成績單】')" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> 匯出成績單 (PDF / 照片)
+                    </button>
+                    <button onclick="closeTeacherScoreReportModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-8 overflow-y-auto space-y-6 text-slate-800" id="teacherReportPrintArea">
+                <div class="text-center space-y-1.5 border-b pb-5 border-slate-200 avoid-break">
+                    <span class="text-xs font-black tracking-widest px-3 py-1 rounded-full bg-purple-50 text-purple-700 uppercase" id="tchReportGradeTag">高雄高一班</span>
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900" id="tchReportQuizTitle">考卷名稱</h2>
+                    <div class="flex items-center justify-center gap-4 text-xs font-bold text-slate-500 pt-1">
+                        <span><i class="fa-solid fa-users text-indigo-500 mr-1"></i>應考人數：<b id="tchReportStudentCount" class="text-slate-800">0</b> 人</span>
+                        <span><i class="fa-solid fa-calculator text-emerald-500 mr-1"></i>全班平均：<b id="tchReportAvgScore" class="text-slate-800">0</b> 分</span>
+                        <span><i class="fa-solid fa-trophy text-amber-500 mr-1"></i>最高分：<b id="tchReportMaxScore" class="text-slate-800">0</b> 分</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 avoid-break">
+                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">一、 大考等級五標標準</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                        <div class="p-3 rounded-2xl bg-[#E8EEF5] border border-[#BACCDD] text-center">
+                            <span class="text-xs font-black text-[#4A647A] block tracking-wider">頂標 (前 12%)</span>
+                            <span class="text-xl font-black text-[#2A3E4E] mt-0.5 block" id="tchValTop">--</span>
+                            <span class="text-[10px] text-[#6E889D] block">PR 88 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#EAF2EB] border border-[#BBD4BE] text-center">
+                            <span class="text-xs font-black text-[#45694C] block tracking-wider">前標 (前 25%)</span>
+                            <span class="text-xl font-black text-[#233D29] mt-0.5 block" id="tchValHigh">--</span>
+                            <span class="text-[10px] text-[#698E70] block">PR 75 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#F7F1E6] border border-[#DFCEAF] text-center">
+                            <span class="text-xs font-black text-[#7A5F35] block tracking-wider">均標 (前 50%)</span>
+                            <span class="text-xl font-black text-[#4A371B] mt-0.5 block" id="tchValAvg">--</span>
+                            <span class="text-[10px] text-[#9A8158] block">PR 50 中位數</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#EFEAF4] border border-[#C6B7D5] text-center">
+                            <span class="text-xs font-black text-[#5C4A6F] block tracking-wider">後標 (前 75%)</span>
+                            <span class="text-xl font-black text-[#362746] mt-0.5 block" id="tchValLow">--</span>
+                            <span class="text-[10px] text-[#806E92] block">PR 25 門檻</span>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-[#F8ECEA] border border-[#DEC0BA] text-center col-span-2 sm:col-span-1">
+                            <span class="text-xs font-black text-[#854F46] block tracking-wider">底標 (前 88%)</span>
+                            <span class="text-xl font-black text-[#53261F] mt-0.5 block" id="tchValBottom">--</span>
+                            <span class="text-[10px] text-[#9D6860] block">PR 12 門檻</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 avoid-break">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">二、 全班成績組距分佈直方圖</h4>
+                        <span class="text-[11px] text-slate-500 font-bold">級距人數統計</span>
+                    </div>
+                    <div class="w-full h-52">
+                        <canvas id="tchScoreChartCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="space-y-2 avoid-break">
+                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">三、 試題雷區與高頻錯誤深度診斷分析表</h4>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-2.5 text-center w-12">題號</th>
+                                    <th class="p-2.5">題目預覽與重點觀念</th>
+                                    <th class="p-2.5 text-center w-20">全班正答率</th>
+                                    <th class="p-2.5 text-center w-20">錯誤率</th>
+                                    <th class="p-2.5 text-center w-20">答錯人數</th>
+                                    <th class="p-2.5 text-center w-20">平均思考</th>
+                                    <th class="p-2.5 text-center w-32">最常誤選陷阱</th>
+                                    <th class="p-2.5 text-center w-24">課堂建議</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tchDiagnosticReportTbody" class="divide-y divide-slate-100 font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="space-y-2 avoid-break">
+                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">四、 全班考生實名成績總名冊 (由高至低排序)</h4>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 text-center w-16">名次</th>
+                                    <th class="p-3 text-center">學生姓名</th>
+                                    <th class="p-3 text-center">得分 / 總分</th>
+                                    <th class="p-3 text-center">換算百分比</th>
+                                    <th class="p-3 text-center">落點等級</th>
+                                    <th class="p-3 text-center">改答案次數</th>
+                                    <th class="p-3 text-center">作答耗時</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tchRankingsTbody" class="divide-y divide-slate-100 font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 匯出格式選擇彈窗 (以 PDF 儲存 / 以照片儲存) -->
+    <div id="exportChoiceModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+            <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">選擇匯出格式</h3>
+                        <p class="text-xs text-slate-500">請選擇要儲存為 PDF 或照片檔案</p>
+                    </div>
+                </div>
+                <button onclick="closeExportChoiceModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div onclick="executeExportChoice('pdf')" class="p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-600 hover:bg-indigo-50/60 transition cursor-pointer flex items-center gap-3.5 group">
+                    <div class="w-11 h-11 rounded-xl bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white text-indigo-600 flex items-center justify-center text-xl transition">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-black text-slate-900 block">以 PDF 格式儲存 / 列印</span>
+                        <span class="text-xs text-slate-500">適合正式檔案存檔、A4 報告列印</span>
+                    </div>
+                </div>
+
+                <div onclick="executeExportChoice('image')" class="p-4 rounded-2xl border-2 border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/60 transition cursor-pointer flex items-center gap-3.5 group">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-50 group-hover:bg-emerald-600 group-hover:text-white text-emerald-600 flex items-center justify-center text-xl transition">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-black text-slate-900 block">以 長圖照片 (PNG) 儲存</span>
+                        <span class="text-xs text-slate-500">直接下載高畫質圖片，方便傳 LINE</span>
                     </div>
                 </div>
             </div>
