@@ -12,6 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2canvas CDN (支援將成績單一鍵轉換並下載為高畫質照片) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- v63：PDF 文字層擷取與掃描檔 OCR，全部在瀏覽器本機完成 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <!-- Firebase 8.10.1 官方穩定 SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -288,6 +291,68 @@
             letter-spacing: 0.08em;
         }
 
+        /* v63：後台改成三個獨立工作區，班級、考卷與作答資料不再混在同一排 */
+        .admin-primary-nav {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .admin-primary-button {
+            min-width: 0;
+            border: 1px solid var(--border-main);
+            background: var(--bg-card);
+            color: var(--text-sub);
+            border-radius: 1rem;
+            padding: 0.9rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-align: left;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .admin-primary-button:hover {
+            transform: translateY(-1px);
+            border-color: var(--color-primary);
+        }
+
+        .admin-primary-button.is-active {
+            background: var(--color-primary-bg);
+            color: var(--color-primary-text);
+            border-color: var(--color-primary);
+            box-shadow: inset 0 0 0 1px var(--color-primary);
+        }
+
+        .admin-primary-button .nav-icon {
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            background: var(--bg-sub);
+            color: var(--color-primary);
+        }
+
+        .admin-primary-button.is-active .nav-icon {
+            background: var(--color-primary);
+            color: #fff;
+        }
+
+        .class-management-card {
+            border: 1px solid var(--border-main);
+            background: var(--bg-card);
+            border-radius: 1.15rem;
+            padding: 1rem;
+        }
+
+        @media (max-width: 720px) {
+            .admin-primary-nav { grid-template-columns: 1fr; }
+            .admin-primary-button { padding: 0.72rem 0.85rem; }
+        }
+
         .exam-order-button {
             min-height: 4.25rem;
         }
@@ -554,62 +619,71 @@
             
 
 
-            <!-- v62：管理後台頂部改為清楚的兩區式工具列 -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <div class="flex flex-col lg:flex-row lg:items-start gap-3">
-                    <section class="admin-toolbar-section flex-1">
-                        <div class="admin-toolbar-label">
-                            <i class="fa-solid fa-school text-indigo-600"></i>
-                            <span>班級與作答資料</span>
-                        </div>
-                        <div id="adminTabsContainer" class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                            <!-- JS 依班級資料動態生成 -->
-                        </div>
-                    </section>
+            <!-- v63：後台主功能分流，避免班級、考卷與學生資料混在同一個工具列 -->
+            <nav class="admin-primary-nav bg-white p-3 rounded-2xl border border-slate-200 shadow-sm" aria-label="管理後台功能">
+                <button id="adminSectionBtn-classes" type="button" class="admin-primary-button" onclick="switchAdminSection('classes')">
+                    <span class="nav-icon"><i class="fa-solid fa-school"></i></span>
+                    <span class="min-w-0"><strong class="block text-sm">班級管理</strong><small class="block text-[11px] opacity-70 mt-0.5">新增、刪除與查看班級概況</small></span>
+                </button>
+                <button id="adminSectionBtn-quizzes" type="button" class="admin-primary-button is-active" onclick="switchAdminSection('quizzes')">
+                    <span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span>
+                    <span class="min-w-0"><strong class="block text-sm">考卷管理</strong><small class="block text-[11px] opacity-70 mt-0.5">建立、匯入與編輯各班考卷</small></span>
+                </button>
+                <button id="adminSectionBtn-results" type="button" class="admin-primary-button" onclick="switchAdminSection('results')">
+                    <span class="nav-icon"><i class="fa-solid fa-chart-column"></i></span>
+                    <span class="min-w-0"><strong class="block text-sm">學生作答資料</strong><small class="block text-[11px] opacity-70 mt-0.5">共 <span id="totalSubmissionsCount">0</span> 筆，查看分析與診斷</small></span>
+                </button>
+            </nav>
 
-                    <section class="admin-toolbar-section lg:w-[560px]">
-                        <div class="admin-toolbar-label">
-                            <i class="fa-solid fa-screwdriver-wrench text-indigo-600"></i>
-                            <span>考卷與資料管理</span>
-                        </div>
-                        <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full">
-                            <button onclick="openAddClassModal()" id="btnAddClass" class="px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <i class="fa-solid fa-school-circle-check"></i> 新增班級
-                            </button>
-                            <button onclick="openDeleteClassModal()" id="btnDeleteClass" class="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <i class="fa-solid fa-school-circle-xmark"></i> 刪除班級
-                            </button>
-                            <button onclick="copyStudentLink()" class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-100 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <i class="fa-solid fa-share-nodes"></i> 複製學生連結
-                            </button>
-                            <button onclick="exportQuizzesBackup()" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center justify-center gap-1 whitespace-nowrap" title="將所有考卷備份下載成檔案">
-                                <i class="fa-solid fa-download"></i> 備份考卷
-                            </button>
-                            <button onclick="document.getElementById('importQuizzesFileInput').click()" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center justify-center gap-1 whitespace-nowrap" title="匯入之前備份的考卷檔案">
-                                <i class="fa-solid fa-upload"></i> 匯入考卷
-                            </button>
-                            <input type="file" id="importQuizzesFileInput" accept=".json" class="hidden" onchange="importQuizzesBackup(event)">
-                            <button onclick="openAiImportModal()" class="col-span-2 sm:col-span-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-purple-100 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI 智慧匯入
-                            </button>
-                            <button onclick="openCreateQuizChoiceModal()" id="btnCreateQuiz" class="col-span-2 sm:col-span-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <i class="fa-solid fa-file-circle-plus"></i> 建立新考卷
-                            </button>
-                        </div>
-                    </section>
+            <!-- 工作區 A：班級管理 -->
+            <div id="adminClassManagementView" class="hidden space-y-5">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-black text-slate-900 flex items-center gap-2"><i class="fa-solid fa-school-flag text-indigo-600"></i>班級管理</h2>
+                        <p class="text-xs text-slate-500 mt-1">集中管理班級；考卷與作答紀錄會分別在其他工作區呈現。</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button onclick="openAddClassModal()" id="btnAddClass" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-school-circle-check"></i> 新增班級
+                        </button>
+                        <button onclick="openDeleteClassModal()" id="btnDeleteClass" class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-school-circle-xmark"></i> 刪除班級
+                        </button>
+                        <button onclick="copyStudentLink()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-share-nodes"></i> 複製學生連結
+                        </button>
+                    </div>
                 </div>
+                <div id="classManagementGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
             </div>
 
-            <!-- 子區塊 A: 考卷卡片清單 -->
-            <div id="adminQuizListView" class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-folder-open text-indigo-600"></i> <span id="adminGradeTitle">高雄高一班 測驗卷清單</span>
-                    </h2>
-                    <span class="text-xs text-slate-500 font-medium" id="quizCountSummary">共 2 份考卷</span>
+            <!-- 工作區 B：考卷管理 -->
+            <div id="adminQuizManagementView" class="space-y-5">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-3">
+                    <section class="admin-toolbar-section">
+                        <div class="admin-toolbar-label"><i class="fa-solid fa-school text-indigo-600"></i><span>選擇考卷所屬班級</span></div>
+                        <div id="adminTabsContainer" class="flex items-center gap-1.5 overflow-x-auto pb-0.5"></div>
+                    </section>
+                    <section class="admin-toolbar-section">
+                        <div class="admin-toolbar-label"><i class="fa-solid fa-screwdriver-wrench text-indigo-600"></i><span>考卷工具</span></div>
+                        <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                            <button onclick="exportQuizzesBackup()" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition whitespace-nowrap"><i class="fa-solid fa-download mr-1"></i>備份</button>
+                            <button onclick="document.getElementById('importQuizzesFileInput').click()" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition whitespace-nowrap"><i class="fa-solid fa-upload mr-1"></i>匯入備份</button>
+                            <input type="file" id="importQuizzesFileInput" accept=".json" class="hidden" onchange="importQuizzesBackup(event)">
+                            <button onclick="openAiImportModal()" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-xl shadow-md transition whitespace-nowrap"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>智慧辨識考卷</button>
+                            <button onclick="openCreateQuizChoiceModal()" id="btnCreateQuiz" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition whitespace-nowrap"><i class="fa-solid fa-file-circle-plus mr-1"></i>建立新考卷</button>
+                        </div>
+                    </section>
                 </div>
-                <div id="quizCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <!-- JS 動態產生考卷卡片 -->
+
+                <div id="adminQuizListView" class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-indigo-600"></i> <span id="adminGradeTitle">班級測驗卷清單</span>
+                        </h2>
+                        <span class="text-xs text-slate-500 font-medium" id="quizCountSummary">共 0 份考卷</span>
+                    </div>
+                    <div id="quizCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
                 </div>
             </div>
 
@@ -1311,6 +1385,7 @@
 
         let isStudentOnlyMode = false;
         let activeAdminTab = classCatalog[0] ? classCatalog[0].id : 'g1';
+        let activeAdminSection = 'quizzes';
         let currentEditingQuizId = "quiz_g1_1";
 
         // ================= 全局考卷資料庫 (支援 LocalStorage 與 Firebase 雲端持久化保存) =================
@@ -1508,8 +1583,8 @@
             ensureClassCatalogCoversData();
             const fallbackId = classCatalog[0] ? classCatalog[0].id : 'g1';
             if (!classCatalog.some(item => item.id === studentSelectedGrade)) studentSelectedGrade = fallbackId;
-            if (activeAdminTab !== 'results' && !classCatalog.some(item => item.id === activeAdminTab)) activeAdminTab = fallbackId;
-            if (typeof activeResultsFilterGrade !== 'undefined' && activeResultsFilterGrade !== 'all' && !classCatalog.some(item => item.id === activeResultsFilterGrade)) {
+            if (!classCatalog.some(item => item.id === activeAdminTab)) activeAdminTab = fallbackId;
+            if (typeof activeResultsFilterGrade !== 'undefined' && !classCatalog.some(item => item.id === activeResultsFilterGrade)) {
                 activeResultsFilterGrade = fallbackId;
             }
         }
@@ -1545,17 +1620,6 @@
                 container.appendChild(button);
             });
 
-            const divider = document.createElement('div');
-            divider.className = 'h-6 w-px bg-slate-300 mx-1 shrink-0';
-            container.appendChild(divider);
-
-            const resultsButton = document.createElement('button');
-            resultsButton.type = 'button';
-            resultsButton.id = 'tab-admin-results';
-            resultsButton.className = 'px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition whitespace-nowrap text-indigo-700 bg-indigo-50 hover:bg-indigo-100';
-            resultsButton.innerHTML = `<i class="fa-solid fa-table-list mr-1"></i>學生作答數據庫 (<span id="totalSubmissionsCount">${studentSubmissionsDB.length}</span>)`;
-            resultsButton.onclick = () => selectAdminTab('results');
-            container.appendChild(resultsButton);
         }
 
         function renderEditorClassOptions() {
@@ -1577,16 +1641,6 @@
             if (!container) return;
             container.innerHTML = '';
 
-            const allButton = document.createElement('button');
-            allButton.type = 'button';
-            allButton.id = 'res-filter-all';
-            allButton.className = activeResultsFilterGrade === 'all'
-                ? 'px-4 py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-sm flex items-center gap-1.5'
-                : 'px-4 py-2 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5';
-            allButton.innerHTML = `全部班級 (<span id="count-filter-all">${studentSubmissionsDB.length}</span>)`;
-            allButton.onclick = () => filterResultsGrade('all');
-            container.appendChild(allButton);
-
             classCatalog.forEach(item => {
                 const count = studentSubmissionsDB.filter(s => s.grade === item.id).length;
                 const button = document.createElement('button');
@@ -1601,12 +1655,43 @@
             });
         }
 
+        function renderClassManagementCards() {
+            const grid = document.getElementById('classManagementGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            classCatalog.forEach((item, index) => {
+                const visual = getClassVisual(index);
+                const quizCount = allQuizzes.filter(quiz => quiz.grade === item.id).length;
+                const submissionCount = studentSubmissionsDB.filter(submission => submission.grade === item.id).length;
+                const card = document.createElement('article');
+                card.className = 'class-management-card space-y-4 shadow-sm';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0"><i class="fa-solid ${visual.icon} ${visual.color} text-lg"></i></div>
+                            <div class="min-w-0"><h3 class="font-black text-slate-900 truncate">${escapeHtml(item.name)}</h3><p class="text-[11px] text-slate-500 mt-0.5">班級代碼：${escapeHtml(item.id)}</p></div>
+                        </div>
+                        <button type="button" onclick="requestDeleteClass('${item.id}')" ${classCatalog.length <= 1 ? 'disabled' : ''} class="w-8 h-8 rounded-xl ${classCatalog.length <= 1 ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'} transition" title="${classCatalog.length <= 1 ? '至少保留一個班級' : '刪除此班級'}"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="rounded-xl bg-indigo-50 border border-indigo-200 p-3"><span class="text-[10px] font-bold text-indigo-600 block">考卷數量</span><strong class="text-xl text-indigo-700">${quizCount}</strong><span class="text-xs text-indigo-600 ml-1">份</span></div>
+                        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-3"><span class="text-[10px] font-bold text-emerald-600 block">作答紀錄</span><strong class="text-xl text-emerald-700">${submissionCount}</strong><span class="text-xs text-emerald-600 ml-1">筆</span></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button type="button" onclick="openClassQuizzes('${item.id}')" class="py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition"><i class="fa-solid fa-file-lines mr-1"></i>查看考卷</button>
+                        <button type="button" onclick="openClassResults('${item.id}')" class="py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"><i class="fa-solid fa-chart-simple mr-1"></i>查看作答</button>
+                    </div>`;
+                grid.appendChild(card);
+            });
+        }
+
         function renderClassControls() {
             ensureValidClassSelections();
             renderStudentGradeButtons();
             renderAdminTabs();
             renderEditorClassOptions();
             renderResultsGradeFilters();
+            renderClassManagementCards();
         }
 
         function openAddClassModal() {
@@ -2475,7 +2560,31 @@
         }
 
         function selectAdminTab(tab) {
+            if (tab === 'results') {
+                switchAdminSection('results');
+                return;
+            }
             activeAdminTab = tab;
+            activeAdminSection = 'quizzes';
+            renderDashboard();
+        }
+
+        function switchAdminSection(section) {
+            if (!['classes', 'quizzes', 'results'].includes(section)) return;
+            activeAdminSection = section;
+            renderDashboard();
+        }
+
+        function openClassQuizzes(classId) {
+            activeAdminTab = classId;
+            activeAdminSection = 'quizzes';
+            renderDashboard();
+        }
+
+        function openClassResults(classId) {
+            activeResultsFilterGrade = classId;
+            activeResultsFilterQuizId = '';
+            activeAdminSection = 'results';
             renderDashboard();
         }
 
@@ -2484,35 +2593,38 @@
             const totalCount = document.getElementById('totalSubmissionsCount');
             if (totalCount) totalCount.innerText = studentSubmissionsDB.length;
 
-            [...classCatalog.map(item => item.id), 'results'].forEach(t => {
+            ['classes', 'quizzes', 'results'].forEach(section => {
+                const sectionBtn = document.getElementById(`adminSectionBtn-${section}`);
+                if (sectionBtn) sectionBtn.classList.toggle('is-active', section === activeAdminSection);
+            });
+
+            classCatalog.map(item => item.id).forEach(t => {
                 const btn = document.getElementById(`tab-admin-${t}`);
                 if (!btn) return;
                 if (t === activeAdminTab) {
-                    btn.className = (t === 'results') 
-                        ? "px-4 py-2 rounded-lg text-xs md:text-sm font-bold bg-indigo-600 text-white shadow-sm whitespace-nowrap"
-                        : "px-4 py-2 rounded-lg text-xs md:text-sm font-bold bg-white text-indigo-600 shadow-sm whitespace-nowrap";
+                    btn.className = "px-4 py-2 rounded-lg text-xs md:text-sm font-bold bg-indigo-600 text-white shadow-sm whitespace-nowrap";
                 } else {
-                    btn.className = (t === 'results')
-                        ? "px-4 py-2 rounded-lg text-xs md:text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 whitespace-nowrap"
-                        : "px-4 py-2 rounded-lg text-xs md:text-sm font-bold text-slate-600 hover:text-slate-900 whitespace-nowrap";
+                    btn.className = "px-4 py-2 rounded-lg text-xs md:text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 whitespace-nowrap";
                 }
             });
 
-            const quizListView = document.getElementById('adminQuizListView');
+            const classManagementView = document.getElementById('adminClassManagementView');
+            const quizManagementView = document.getElementById('adminQuizManagementView');
             const resultsTableView = document.getElementById('adminResultsTableView');
-            const btnCreateQuiz = document.getElementById('btnCreateQuiz');
+            classManagementView.classList.toggle('hidden', activeAdminSection !== 'classes');
+            quizManagementView.classList.toggle('hidden', activeAdminSection !== 'quizzes');
+            resultsTableView.classList.toggle('hidden', activeAdminSection !== 'results');
 
-            if (activeAdminTab === 'results') {
-                quizListView.classList.add('hidden');
-                resultsTableView.classList.remove('hidden');
-                btnCreateQuiz.classList.add('hidden');
+            if (activeAdminSection === 'results') {
                 updateQuizFilterDropdown();
                 renderSubmissionsTable();
                 generateFiveStandards();
-            } else {
-                quizListView.classList.remove('hidden');
-                resultsTableView.classList.add('hidden');
-                btnCreateQuiz.classList.remove('hidden');
+                return;
+            }
+
+            if (activeAdminSection === 'classes') return;
+
+            {
 
                 document.getElementById('adminGradeTitle').innerText = `${getGradeName(activeAdminTab)} 測驗卷清單`;
                 const filtered = allQuizzes.filter(q => q.grade === activeAdminTab);
@@ -2588,10 +2700,11 @@
         let activeResultsFilterQuizId = '';
 
         function filterResultsGrade(grade) {
+            if (!classCatalog.some(item => item.id === grade)) return;
             activeResultsFilterGrade = grade;
             activeResultsFilterQuizId = ''; // 切換班級時重設考卷為該班第一張
 
-            ['all', ...classCatalog.map(item => item.id)].forEach(classId => {
+            classCatalog.map(item => item.id).forEach(classId => {
                 const btn = document.getElementById(`res-filter-${classId}`);
                 if (!btn) return;
                 if (classId === grade) {
@@ -2619,9 +2732,7 @@
             select.innerHTML = '';
 
             // 找出符合目前班級的考卷
-            const classQuizzes = activeResultsFilterGrade === 'all'
-                ? [...allQuizzes]
-                : allQuizzes.filter(q => q.grade === activeResultsFilterGrade);
+            const classQuizzes = allQuizzes.filter(q => q.grade === activeResultsFilterGrade);
 
             if (classQuizzes.length === 0) {
                 select.innerHTML = '<option value="">本班級尚無建立考卷</option>';
@@ -2646,9 +2757,7 @@
         // 計算並生成五標、組距圖與各題痛點診斷
         function generateFiveStandards() {
             // 嚴格篩選當前班級的繳卷紀錄
-            let filtered = activeResultsFilterGrade === 'all'
-                ? [...studentSubmissionsDB]
-                : studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
+            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
             
             // 若有選定特定考卷，再篩選該份考卷
             if (activeResultsFilterQuizId) {
@@ -2659,7 +2768,7 @@
             const currentQuiz = allQuizzes.find(q => q.id === activeResultsFilterQuizId);
             const quizTitleTag = currentQuiz
                 ? `【${currentQuiz.title}】`
-                : (activeResultsFilterGrade === 'all' ? '【全部班級】' : `【${getGradeName(activeResultsFilterGrade)}】`);
+                : `【${getGradeName(activeResultsFilterGrade)}】`;
 
             document.getElementById('chartSampleCountTag').innerText = `${quizTitleTag} 樣本人數：${filtered.length} 人`;
             const painTag = document.getElementById('painpointQuizTag');
@@ -3011,18 +3120,14 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            // 更新全部與各班級人數計數標籤
-            const allCountEl = document.getElementById('count-filter-all');
-            if (allCountEl) allCountEl.innerText = studentSubmissionsDB.length;
+            // 更新各班級人數計數標籤
             classCatalog.forEach(item => {
                 const countEl = document.getElementById(`count-filter-${item.id}`);
                 if (countEl) countEl.innerText = studentSubmissionsDB.filter(s => s.grade === item.id).length;
             });
 
-            // 過濾當前選定班級（支援全部班級）
-            let filtered = activeResultsFilterGrade === 'all'
-                ? [...studentSubmissionsDB]
-                : studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
+            // 僅顯示目前選定班級
+            let filtered = studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
             if (activeResultsFilterQuizId) {
                 filtered = filtered.filter(s => s.quizId === activeResultsFilterQuizId);
             }
@@ -3516,7 +3621,7 @@
                 ? [...studentSubmissionsDB]
                 : studentSubmissionsDB.filter(s => s.grade === activeResultsFilterGrade);
             if (gradeRecords.length === 0) {
-                const label = activeResultsFilterGrade === 'all' ? '全部班級' : getGradeName(activeResultsFilterGrade);
+                const label = getGradeName(activeResultsFilterGrade);
                 alert(`⚠️ 目前【${label}】尚無任何學生繳卷紀錄！無法產生全班分析單。`);
                 return null;
             }
@@ -3533,7 +3638,7 @@
             }
 
             let quizTitle = "全班綜合測驗總評量";
-            let gradeTitle = activeResultsFilterGrade === 'all' ? '全部班級' : getGradeName(activeResultsFilterGrade);
+            let gradeTitle = getGradeName(activeResultsFilterGrade);
             if (currentQuiz) {
                 quizTitle = currentQuiz.title;
                 gradeTitle = getGradeName(currentQuiz.grade);
@@ -3886,7 +3991,7 @@
         // 建立全新空白考卷
         function createNewBlankQuiz() {
             closeCreateQuizChoiceModal();
-            const grade = (activeAdminTab === 'results') ? (classCatalog[0] ? classCatalog[0].id : 'g1') : activeAdminTab;
+            const grade = activeAdminTab;
             const newId = `quiz_${grade}_${Date.now()}`;
             const newQuiz = {
                 id: newId,
@@ -3936,7 +4041,7 @@
             closeCreateQuizChoiceModal();
 
             // 貼上到目前所在的班級
-            const targetGrade = (activeAdminTab === 'results') ? sourceQuiz.grade : activeAdminTab;
+            const targetGrade = activeAdminTab;
             const newId = `quiz_${targetGrade}_${Date.now()}`;
             
             const pastedQuiz = JSON.parse(JSON.stringify(sourceQuiz));
@@ -3957,7 +4062,7 @@
         }
 
         function createNewQuizForCurrentGrade_deprecated() {
-            const grade = (activeAdminTab === 'results') ? (classCatalog[0] ? classCatalog[0].id : 'g1') : activeAdminTab;
+            const grade = activeAdminTab;
             const newId = `quiz_${grade}_${Date.now()}`;
             const newQuiz = {
                 id: newId,
@@ -4942,163 +5047,484 @@
         </div>
     </div>
 
-    <!-- AI 智慧試卷匯入彈跳視窗 (PDF / 圖片) -->
-    <div id="aiImportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-slate-200 space-y-6">
-            <div class="flex items-center justify-between border-b pb-4 border-slate-100">
+    <!-- v63：真正可用的 PDF 文字層／掃描 OCR／貼上文字智慧匯入 -->
+    <div id="aiImportModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-5 fade-in">
+        <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[94vh] overflow-y-auto p-5 md:p-7 shadow-2xl border border-slate-200 space-y-5">
+            <div class="flex items-start justify-between border-b pb-4 border-slate-100 gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
-                        <i class="fa-solid fa-file-arrow-up"></i>
-                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-file-circle-check"></i></div>
                     <div>
-                        <h3 class="text-lg font-black text-slate-900">AI 智慧試卷自動生成</h3>
-                        <p class="text-xs text-slate-500">上傳考卷 PDF 或試題截圖圖片，AI 將自動識別並建置整張考卷</p>
+                        <h3 class="text-lg font-black text-slate-900">智慧辨識考卷</h3>
+                        <p class="text-xs text-slate-500">PDF 優先讀取原始文字；掃描頁與圖片才使用 OCR，辨識後可先校對再匯入。</p>
                     </div>
                 </div>
-                <button onclick="closeAiImportModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button onclick="closeAiImportModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- 上傳拖曳區 -->
-            <div id="dropZone" class="border-2 border-dashed border-purple-300 bg-purple-50/40 rounded-2xl p-6 text-center space-y-3 cursor-pointer hover:bg-purple-50 transition" onclick="document.getElementById('aiFileInput').click()">
-                <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-2xl mx-auto">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div id="aiSourcePanel" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <section class="space-y-3">
+                    <div id="dropZone" class="border-2 border-dashed border-purple-300 bg-purple-50/40 rounded-2xl p-6 text-center space-y-3 cursor-pointer hover:bg-purple-50 transition" onclick="document.getElementById('aiFileInput').click()">
+                        <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-2xl mx-auto"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <div><span class="text-sm font-bold text-slate-800 block">選擇 PDF 或多張試題圖片</span><span class="text-xs text-slate-400 mt-1 block">可拖曳上傳；多張圖片會依檔名順序合併</span></div>
+                        <input type="file" id="aiFileInput" accept="image/png,image/jpeg,image/webp,.pdf,application/pdf" multiple class="hidden" onchange="handleAiFileSelected(event)">
+                    </div>
+                    <div id="aiFilePreviewContainer" class="hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                        <div class="flex items-center justify-between"><span class="text-xs font-black text-slate-700">已選擇檔案</span><button type="button" onclick="clearAiSelectedFiles()" class="text-[11px] font-bold text-rose-600 hover:underline">全部清除</button></div>
+                        <div id="aiSelectedFilesList" class="space-y-1 max-h-28 overflow-y-auto"></div>
+                    </div>
+                </section>
+
+                <section class="space-y-3">
+                    <div class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
+                        <label for="aiManualTextInput" class="text-xs font-black text-slate-700 block"><i class="fa-solid fa-keyboard text-indigo-600 mr-1"></i>或直接貼上 Word／Google 文件的題目文字</label>
+                        <textarea id="aiManualTextInput" rows="7" oninput="updateAiParseButtonState()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs leading-relaxed outline-none focus:ring-2 focus:ring-purple-500" placeholder="範例：&#10;1. 下列敘述何者正確？&#10;(A) 選項一 (B) 選項二 (C) 選項三 (D) 選項四&#10;答案：B"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label class="text-[11px] font-bold text-slate-600">PDF 辨識方式
+                            <select id="aiRecognitionMode" class="w-full mt-1 px-3 py-2 rounded-xl border text-xs font-bold"><option value="auto">自動判斷（建議）</option><option value="text">優先使用 PDF 文字</option><option value="ocr">全部頁面強制 OCR</option></select>
+                        </label>
+                        <label class="text-[11px] font-bold text-slate-600">OCR 語言
+                            <select id="aiOcrLanguage" class="w-full mt-1 px-3 py-2 rounded-xl border text-xs font-bold"><option value="chi_tra+eng">繁體中文＋英文</option><option value="eng">英文</option></select>
+                        </label>
+                    </div>
+                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] leading-relaxed text-amber-800"><i class="fa-solid fa-lightbulb mr-1"></i><b>提高辨識率：</b>圖片請保持正向、清晰且避免陰影；題號使用「1.」或「1、」，選項使用「(A)～(D)」。</div>
+                </section>
+            </div>
+
+            <div id="aiLoadingIndicator" class="hidden rounded-2xl border border-purple-200 bg-purple-50 p-4 space-y-3">
+                <div class="flex items-center gap-3"><div class="w-6 h-6 border-4 border-purple-600 border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-xs font-bold text-purple-700" id="aiLoadingText">準備辨識…</span></div>
+                <div class="h-2 rounded-full bg-white overflow-hidden"><div id="aiProgressBar" class="h-full bg-purple-600 transition-all duration-300" style="width: 2%"></div></div>
+            </div>
+
+            <div id="aiRecognitionPreview" class="hidden space-y-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="aiRecognitionStats"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-4">
+                    <section class="rounded-2xl border border-slate-200 p-4 space-y-2">
+                        <div class="flex items-center justify-between"><label class="text-xs font-black text-slate-700">辨識文字（可直接修正）</label><button type="button" onclick="reparseAiEditedText()" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold hover:bg-indigo-100"><i class="fa-solid fa-rotate mr-1"></i>依修正文字重新切題</button></div>
+                        <textarea id="aiRecognizedTextEditor" rows="18" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs leading-relaxed font-mono outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </section>
+                    <section class="rounded-2xl border border-slate-200 p-4 space-y-3">
+                        <div class="flex items-center justify-between"><h4 class="text-xs font-black text-slate-700">題目結構預覽</h4><span id="aiPreviewCountTag" class="text-[11px] font-bold text-purple-700"></span></div>
+                        <div id="aiParseWarnings" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-relaxed"></div>
+                        <div id="aiQuestionPreviewList" class="space-y-2 max-h-[430px] overflow-y-auto pr-1"></div>
+                    </section>
                 </div>
-                <div>
-                    <span class="text-sm font-bold text-slate-800 block">點擊此處或拖曳上傳 PDF / 圖片檔案</span>
-                    <span class="text-xs text-slate-400 mt-0.5 block">支援 PNG, JPG, PDF (自動進行 OCR 智慧辨識)</span>
-                </div>
-                <input type="file" id="aiFileInput" accept="image/*,.pdf" class="hidden" onchange="handleAiFileSelected(event)">
             </div>
 
-            <div id="aiFilePreviewContainer" class="hidden space-y-2">
-                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span class="text-xs font-bold text-slate-700 truncate" id="aiFileNameDisplay">filename.png</span>
-                    <span class="text-xs text-emerald-600 font-bold"><i class="fa-solid fa-check mr-1"></i>已就緒</span>
-                </div>
-            </div>
-
-            <!-- 解析進度條 (預設隱藏) -->
-            <div id="aiLoadingIndicator" class="hidden space-y-2 text-center py-4">
-                <div class="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <span class="text-xs font-bold text-purple-700 block" id="aiLoadingText">正在進行 AI 試卷 OCR 辨識與題目結構化解析...</span>
-            </div>
-
-            <!-- 按鈕動作 -->
-            <div class="flex items-center gap-3 pt-2">
-                <button onclick="closeAiImportModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-sm transition">
-                    取消
-                </button>
-                <button id="btnStartAiParse" onclick="executeAiImport()" disabled class="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-purple-100 transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> 開始 AI 生成考卷
-                </button>
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeAiImportModal()" class="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-sm transition">取消</button>
+                <button id="btnStartAiParse" onclick="executeAiImport()" disabled class="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition"><i class="fa-solid fa-magnifying-glass mr-1"></i>開始辨識與切題</button>
+                <button id="btnConfirmAiImport" onclick="confirmAiImport()" class="hidden px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition"><i class="fa-solid fa-file-circle-plus mr-1"></i>確認匯入考卷</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ================= AI 智慧試卷匯入模組 =================
-        let selectedAiFile = null;
+        // ================= v63：PDF 文字層 + OCR + 結構化切題 =================
+        let selectedAiFiles = [];
+        let aiRecognizedText = '';
+        let aiParsedQuestions = [];
+        let aiParseWarningMessages = [];
+        let aiOcrWorker = null;
 
         function openAiImportModal() {
-            selectedAiFile = null;
+            selectedAiFiles = [];
+            aiRecognizedText = '';
+            aiParsedQuestions = [];
+            aiParseWarningMessages = [];
+            document.getElementById('aiFileInput').value = '';
+            document.getElementById('aiManualTextInput').value = '';
             document.getElementById('aiFilePreviewContainer').classList.add('hidden');
             document.getElementById('aiLoadingIndicator').classList.add('hidden');
-            document.getElementById('btnStartAiParse').disabled = true;
-            document.getElementById('aiFileInput').value = '';
+            document.getElementById('aiRecognitionPreview').classList.add('hidden');
+            document.getElementById('btnConfirmAiImport').classList.add('hidden');
+            updateAiParseButtonState();
             document.getElementById('aiImportModal').classList.remove('hidden');
         }
 
-        function closeAiImportModal() {
+        async function closeAiImportModal() {
             document.getElementById('aiImportModal').classList.add('hidden');
+            if (aiOcrWorker) {
+                try { await aiOcrWorker.terminate(); } catch (e) {}
+                aiOcrWorker = null;
+            }
         }
 
         function handleAiFileSelected(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            selectedAiFile = file;
-            document.getElementById('aiFileNameDisplay').innerText = file.name;
-            document.getElementById('aiFilePreviewContainer').classList.remove('hidden');
-            document.getElementById('btnStartAiParse').disabled = false;
+            setAiSelectedFiles(Array.from(event.target.files || []));
         }
 
-        function executeAiImport() {
-            if (!selectedAiFile) return;
+        function setAiSelectedFiles(files) {
+            const accepted = files.filter(file => file.type === 'application/pdf' || /\.(pdf|png|jpe?g|webp)$/i.test(file.name));
+            selectedAiFiles = accepted.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant', { numeric: true }));
+            renderAiSelectedFiles();
+            updateAiParseButtonState();
+        }
 
-            const loadingEl = document.getElementById('aiLoadingIndicator');
-            const loadingText = document.getElementById('aiLoadingText');
-            loadingEl.classList.remove('hidden');
-            document.getElementById('btnStartAiParse').disabled = true;
+        function clearAiSelectedFiles() {
+            selectedAiFiles = [];
+            document.getElementById('aiFileInput').value = '';
+            renderAiSelectedFiles();
+            updateAiParseButtonState();
+        }
 
-            const steps = [
-                "正在上傳文件至 AI 視覺辨識模型...",
-                "正在進行版面分析與文字 OCR 擷取...",
-                "正在自動提取題目敘述、選項與標準答案...",
-                "正在建立知識點維度、題型分類與難度標記..."
-            ];
+        function renderAiSelectedFiles() {
+            const wrap = document.getElementById('aiFilePreviewContainer');
+            const list = document.getElementById('aiSelectedFilesList');
+            if (!selectedAiFiles.length) {
+                wrap.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            wrap.classList.remove('hidden');
+            list.innerHTML = selectedAiFiles.map((file, index) => `<div class="flex items-center justify-between gap-2 bg-white rounded-lg px-2.5 py-2 border border-slate-200"><span class="text-[11px] font-bold text-slate-700 truncate"><i class="fa-solid ${file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'fa-file-pdf text-rose-500' : 'fa-file-image text-purple-500'} mr-1.5"></i>${escapeHtml(file.name)}</span><button type="button" onclick="removeAiSelectedFile(${index})" class="text-slate-400 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+        }
 
-            let stepIdx = 0;
-            const interval = setInterval(() => {
-                stepIdx++;
-                if (stepIdx < steps.length) {
-                    loadingText.innerText = steps[stepIdx];
-                } else {
-                    clearInterval(interval);
-                    loadingEl.classList.add('hidden');
-                    closeAiImportModal();
+        function removeAiSelectedFile(index) {
+            selectedAiFiles.splice(index, 1);
+            renderAiSelectedFiles();
+            updateAiParseButtonState();
+        }
 
-                    const grade = activeAdminTab === 'results' ? (classCatalog[0] ? classCatalog[0].id : 'g1') : activeAdminTab;
-                    const newQuizId = `quiz_ai_${Date.now()}`;
-                    const importedQuiz = {
-                        id: newQuizId,
-                        grade: grade,
-                        title: "【AI 智慧匯入】" + selectedAiFile.name.replace(/\.[^/.]+$/, ""),
-                        desc: "本考卷由上傳之 PDF/圖片透過 AI OCR 自動識別生成，請檢視與調整各題配分與難度。",
-                        instructions: "【測驗叮嚀】\n1. 請詳細閱讀題意後作答。\n2. 本卷採智慧配分與大考多選題扣分制。",
-                        timerMode: "countup",
-                        countdownMinutes: 15,
-                        shuffleQuestions: false,
-                        shuffleOptions: false,
-                        skillDimensions: ["光學解析", "化學反應", "實驗原理", "綜合推理", "數據判讀"],
-                        questions: [
-                            {
-                                id: Date.now() + 1,
-                                type: "single",
-                                skill: "光學解析",
-                                category: "觀念",
-                                star: 3,
-                                points: 10,
-                                text: "【AI辨識題 1】關於光的干涉與繞射實驗，下列敘述何者正確？",
-                                image: "",
-                                options: ["單狹縫繞射中央亮紋最窄且最暗", "雙狹縫干涉條紋間距與波長成正比", "光波頻率增加時條紋間距變大", "白光干涉時中央會出現彩色條紋"],
-                                correctAnswers: [1],
-                                explanation: "雙狹縫干涉條紋間距公式 Δx = Lλ / d，條紋間距與波長 λ 成正比，與狹縫間距 d 成反比。"
-                            },
-                            {
-                                id: Date.now() + 2,
-                                type: "multiple",
-                                skill: "化學反應",
-                                category: "計算",
-                                star: 4,
-                                points: 15,
-                                text: "【AI辨識題 2】【多選題】在定溫定壓下，下列關於理想氣體反應的敘述哪些正確？",
-                                image: "",
-                                options: ["氣體分子平均動能僅與絕對溫度有關", "反應容器體積加倍時壓力減半", "分壓定律適用於所有混合氣體", "分子量較小的氣體擴散速率較慢"],
-                                correctAnswers: [0, 1, 2],
-                                explanation: "均勻混合氣體適用分壓定律；平均動能 E_k = (3/2)RT，僅與絕對溫標有關；依格瑞罕擴散定律，分子量越小擴散速率越快（選項 3 敘述顛倒）。"
-                            }
-                        ]
-                    };
+        function updateAiParseButtonState() {
+            const manualText = document.getElementById('aiManualTextInput');
+            const button = document.getElementById('btnStartAiParse');
+            if (button) button.disabled = !selectedAiFiles.length && !(manualText && manualText.value.trim());
+        }
 
-                    allQuizzes.push(importedQuiz);
-                    saveQuizzesToStorage();
-                    renderDashboard();
-                    alert("🎉 成功！AI 已成功解析文件並生成一份全新考卷！\n您可以點擊該考卷的「編輯題目」隨時調整題型、難度與配分。");
-                    openQuizEditor(newQuizId);
+        function setAiProgress(message, percent) {
+            document.getElementById('aiLoadingText').textContent = message;
+            document.getElementById('aiProgressBar').style.width = `${Math.max(2, Math.min(100, percent || 2))}%`;
+        }
+
+        async function ensureAiOcrWorker() {
+            if (aiOcrWorker) return aiOcrWorker;
+            if (!window.Tesseract) throw new Error('OCR 元件載入失敗，請確認網路連線後重新開啟此檔案。');
+            const language = document.getElementById('aiOcrLanguage').value || 'chi_tra+eng';
+            aiOcrWorker = await Tesseract.createWorker(language, 1, {
+                logger: info => {
+                    if (info.status === 'recognizing text' && typeof info.progress === 'number') {
+                        setAiProgress(`OCR 正在辨識文字 ${Math.round(info.progress * 100)}%`, 25 + info.progress * 60);
+                    }
                 }
-            }, 800);
+            });
+            return aiOcrWorker;
         }
+
+        function pdfTextItemsToLines(items) {
+            const rows = [];
+            (items || []).forEach(item => {
+                const text = String(item.str || '').trim();
+                if (!text) return;
+                const x = item.transform ? item.transform[4] : 0;
+                const y = item.transform ? item.transform[5] : 0;
+                let row = rows.find(candidate => Math.abs(candidate.y - y) < 3);
+                if (!row) { row = { y, pieces: [] }; rows.push(row); }
+                row.pieces.push({ x, text });
+            });
+            return rows.sort((a, b) => b.y - a.y).map(row => row.pieces.sort((a, b) => a.x - b.x).map(piece => piece.text).join(' ')).join('\n');
+        }
+
+        async function ocrImageSource(source, label) {
+            setAiProgress(`正在啟動 OCR：${label}`, 22);
+            const worker = await ensureAiOcrWorker();
+            const result = await worker.recognize(source);
+            return result && result.data ? result.data.text : '';
+        }
+
+        async function extractPdfText(file, fileIndex, fileTotal) {
+            if (!window.pdfjsLib) throw new Error('PDF 解析元件載入失敗，請確認網路連線。');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+            const mode = document.getElementById('aiRecognitionMode').value;
+            const pages = [];
+            for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+                const base = ((fileIndex + (pageNo - 1) / pdf.numPages) / fileTotal) * 78;
+                setAiProgress(`正在讀取 ${file.name}・第 ${pageNo}/${pdf.numPages} 頁`, 8 + base);
+                const page = await pdf.getPage(pageNo);
+                let pageText = '';
+                if (mode !== 'ocr') {
+                    const textContent = await page.getTextContent();
+                    pageText = pdfTextItemsToLines(textContent.items);
+                }
+                const usefulChars = pageText.replace(/\s/g, '').length;
+                if (mode === 'ocr' || (mode === 'auto' && usefulChars < 45)) {
+                    const viewport = page.getViewport({ scale: 2.15 });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.ceil(viewport.width);
+                    canvas.height = Math.ceil(viewport.height);
+                    const context = canvas.getContext('2d', { willReadFrequently: true });
+                    context.fillStyle = '#ffffff';
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+                    await page.render({ canvasContext: context, viewport }).promise;
+                    pageText = await ocrImageSource(canvas, `${file.name} 第 ${pageNo} 頁`);
+                }
+                pages.push(`【第 ${pageNo} 頁】\n${pageText}`);
+            }
+            return pages.join('\n\n');
+        }
+
+        async function preprocessImageFile(file) {
+            const imageUrl = URL.createObjectURL(file);
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const element = new Image();
+                    element.onload = () => resolve(element);
+                    element.onerror = () => reject(new Error(`無法讀取圖片：${file.name}`));
+                    element.src = imageUrl;
+                });
+                const maxSide = 2600;
+                const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    const enhanced = Math.max(0, Math.min(255, (gray - 128) * 1.2 + 128));
+                    data[i] = data[i + 1] = data[i + 2] = enhanced;
+                }
+                ctx.putImageData(imageData, 0, 0);
+                return canvas;
+            } finally {
+                URL.revokeObjectURL(imageUrl);
+            }
+        }
+
+        function normalizeAiText(text) {
+            const circled = { '①':'(A)', '②':'(B)', '③':'(C)', '④':'(D)', '⑤':'(E)', '⑥':'(F)', '⑦':'(G)', '⑧':'(H)' };
+            const fullwidthLetters = { 'Ａ':'A', 'Ｂ':'B', 'Ｃ':'C', 'Ｄ':'D', 'Ｅ':'E', 'Ｆ':'F', 'Ｇ':'G', 'Ｈ':'H' };
+            let normalized = String(text || '').replace(/\r\n?/g, '\n').replace(/[①②③④⑤⑥⑦⑧]/g, char => circled[char]).replace(/[ＡＢＣＤＥＦＧＨ]/g, char => fullwidthLetters[char]);
+            normalized = normalized.replace(/[ \t]+([（(][A-Ha-h][）)])/g, '\n$1').replace(/[ \t]+([A-Ha-h][.．、])(?=\s*\S)/g, '\n$1');
+            normalized = normalized.replace(/([^\n])\s+(?=(?:第\s*)?\d{1,3}\s*(?:題)?\s*[.．、:：])/g, '$1\n');
+            normalized = normalized.replace(/([\u3400-\u9fff])[ \t]+(?=[\u3400-\u9fff])/g, '$1');
+            return normalized.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        function lettersToAnswerIndices(value, optionCount) {
+            const matches = String(value || '').toUpperCase().match(/[A-H]/g) || [];
+            return [...new Set(matches.map(letter => letter.charCodeAt(0) - 65).filter(index => index >= 0 && index < optionCount))];
+        }
+
+        function extractAiAnswerKey(text) {
+            const map = {};
+            const source = String(text || '').toUpperCase();
+            const patterns = [
+                /(?:第\s*)?(\d{1,3})\s*(?:題)?\s*[.、:：]\s*([A-H](?:\s*[,，、/]?\s*[A-H])*)/g,
+                /(\d{1,3})\s*[.)．]\s*([A-H](?:\s*[,，、/]?\s*[A-H])*)(?=\s+(?:\d{1,3}\s*[.)．]|$))/g
+            ];
+            patterns.forEach(regex => {
+                let match;
+                while ((match = regex.exec(source))) map[Number(match[1])] = match[2];
+            });
+            return map;
+        }
+
+        function parseAiQuizText(rawText) {
+            const text = normalizeAiText(rawText);
+            const answerKey = extractAiAnswerKey(text);
+            const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+            const chunks = [];
+            let current = null;
+            let mode = 'question';
+
+            const pushCurrent = () => {
+                if (current && current.text.trim()) chunks.push(current);
+                current = null;
+                mode = 'question';
+            };
+
+            lines.forEach(line => {
+                if (/^【(?:第\s*\d+\s*頁|圖片\s*\d+)】$/.test(line)) return;
+                if (/^(?:答案|解答|ANSWER)/i.test(line) && /\d{1,3}\s*[.、:：)]\s*[A-H]/i.test(line)) return;
+                const compactAnswerEntry = line.match(/^(\d{1,3})\s*[.．、:：)]\s*([A-H](?:\s*[,，、/]?\s*[A-H])*)$/i);
+                if (compactAnswerEntry && answerKey[Number(compactAnswerEntry[1])]) return;
+                const questionMatch = line.match(/^(?:第\s*)?(\d{1,3})\s*(?:題)?\s*[.．、:：]\s*(.+)$/) || line.match(/^[（(](\d{1,3})[）)]\s*(.+)$/) || line.match(/^(\d{1,3})\s*[）)]\s*(.+)$/);
+                const optionMatch = line.match(/^(?:[（(【\[]\s*)?([A-Ha-h])\s*(?:[）)】\]]|[.．、:：])\s*(.*)$/);
+                const answerMatch = line.match(/^(?:正確)?答案\s*[:：]?\s*([A-Ha-h\s,，、/]+)$/);
+                const explanationMatch = line.match(/^(?:解析|詳解|說明)\s*[:：]?\s*(.*)$/);
+
+                if (questionMatch && !optionMatch) {
+                    pushCurrent();
+                    current = { sourceNumber: Number(questionMatch[1]), text: questionMatch[2], options: [], answerText: '', explanation: '' };
+                    return;
+                }
+                if (!current) return;
+                if (optionMatch) {
+                    current.options.push(optionMatch[2].trim());
+                    mode = 'option';
+                } else if (answerMatch) {
+                    current.answerText = answerMatch[1];
+                    mode = 'answer';
+                } else if (explanationMatch) {
+                    current.explanation = explanationMatch[1];
+                    mode = 'explanation';
+                } else if (mode === 'option' && current.options.length) {
+                    current.options[current.options.length - 1] += ` ${line}`;
+                } else if (mode === 'explanation') {
+                    current.explanation += ` ${line}`;
+                } else {
+                    current.text += ` ${line}`;
+                }
+            });
+            pushCurrent();
+
+            const warnings = [];
+            const questions = [];
+            chunks.forEach(chunk => {
+                const options = chunk.options.map(option => option.trim()).filter(Boolean);
+                if (options.length < 2) {
+                    warnings.push(`第 ${chunk.sourceNumber} 題只辨識到 ${options.length} 個選項，暫未匯入。`);
+                    return;
+                }
+                const answerSource = chunk.answerText || answerKey[chunk.sourceNumber] || '';
+                const correctAnswers = lettersToAnswerIndices(answerSource, options.length);
+                if (!correctAnswers.length) warnings.push(`第 ${chunk.sourceNumber} 題尚未辨識到答案，匯入後請手動設定。`);
+                const isMultiple = correctAnswers.length > 1 || /多選|複選|哪些|何者正確.*選出/i.test(chunk.text);
+                questions.push({
+                    id: Date.now() + questions.length + 1,
+                    sourceNumber: chunk.sourceNumber,
+                    type: isMultiple ? 'multiple' : 'single',
+                    skill: '智慧匯入',
+                    category: /計算|求|多少|數值/.test(chunk.text) ? '計算' : '觀念',
+                    star: 3,
+                    points: 1,
+                    text: chunk.text.trim(),
+                    image: '',
+                    options,
+                    correctAnswers,
+                    explanation: chunk.explanation.trim()
+                });
+            });
+            return { questions, warnings, detectedChunks: chunks.length };
+        }
+
+        function showAiRecognitionPreview(text) {
+            aiRecognizedText = normalizeAiText(text);
+            const parsed = parseAiQuizText(aiRecognizedText);
+            aiParsedQuestions = parsed.questions;
+            aiParseWarningMessages = parsed.warnings;
+            document.getElementById('aiRecognizedTextEditor').value = aiRecognizedText;
+            document.getElementById('aiRecognitionPreview').classList.remove('hidden');
+            document.getElementById('btnConfirmAiImport').classList.toggle('hidden', !aiParsedQuestions.length);
+            document.getElementById('aiPreviewCountTag').textContent = `可匯入 ${aiParsedQuestions.length} 題`;
+
+            const answered = aiParsedQuestions.filter(question => question.correctAnswers.length).length;
+            const multiple = aiParsedQuestions.filter(question => question.type === 'multiple').length;
+            document.getElementById('aiRecognitionStats').innerHTML = [
+                { label: '辨識題目', value: parsed.detectedChunks, icon: 'fa-list-ol', card: 'bg-indigo-50 border-indigo-200', text: 'text-indigo-700' },
+                { label: '可匯入', value: aiParsedQuestions.length, icon: 'fa-circle-check', card: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+                { label: '已抓到答案', value: answered, icon: 'fa-key', card: 'bg-purple-50 border-purple-200', text: 'text-purple-700' },
+                { label: '多選題', value: multiple, icon: 'fa-square-check', card: 'bg-amber-50 border-amber-200', text: 'text-amber-700' }
+            ].map(stat => `<div class="p-3 rounded-xl border ${stat.card}"><span class="text-[10px] font-bold ${stat.text} block"><i class="fa-solid ${stat.icon} mr-1"></i>${stat.label}</span><strong class="text-xl ${stat.text}">${stat.value}</strong></div>`).join('');
+
+            const warningBox = document.getElementById('aiParseWarnings');
+            warningBox.classList.toggle('hidden', !aiParseWarningMessages.length);
+            warningBox.innerHTML = aiParseWarningMessages.length ? `<b><i class="fa-solid fa-triangle-exclamation mr-1"></i>需要留意</b><br>${aiParseWarningMessages.map(message => escapeHtml(message)).join('<br>')}` : '';
+
+            const previewList = document.getElementById('aiQuestionPreviewList');
+            previewList.innerHTML = aiParsedQuestions.length ? aiParsedQuestions.map((question, index) => {
+                const answerLabel = question.correctAnswers.length ? question.correctAnswers.map(answer => String.fromCharCode(65 + answer)).join('、') : '未辨識';
+                return `<article class="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2"><div class="flex items-start justify-between gap-2"><p class="text-xs font-bold text-slate-800 leading-relaxed"><span class="text-indigo-600 mr-1">${index + 1}.</span>${escapeHtml(question.text)}</p><span class="px-2 py-0.5 rounded-full bg-white border text-[10px] font-bold shrink-0">${question.type === 'multiple' ? '多選' : '單選'}</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-1">${question.options.map((option, optionIndex) => `<div class="text-[11px] ${question.correctAnswers.includes(optionIndex) ? 'text-emerald-700 font-bold' : 'text-slate-600'}">(${String.fromCharCode(65 + optionIndex)}) ${escapeHtml(option)}</div>`).join('')}</div><div class="text-[10px] text-slate-500">答案：<b class="${question.correctAnswers.length ? 'text-emerald-700' : 'text-rose-600'}">${answerLabel}</b></div></article>`;
+            }).join('') : '<div class="py-10 text-center text-xs text-slate-400 font-bold"><i class="fa-solid fa-file-circle-question text-2xl block mb-2"></i>尚未切出完整題目，請在左側依建議格式修正題號與選項後重新切題。</div>';
+        }
+
+        function reparseAiEditedText() {
+            showAiRecognitionPreview(document.getElementById('aiRecognizedTextEditor').value);
+        }
+
+        async function executeAiImport() {
+            const manualText = document.getElementById('aiManualTextInput').value.trim();
+            if (!manualText && !selectedAiFiles.length) return;
+            const loading = document.getElementById('aiLoadingIndicator');
+            const startButton = document.getElementById('btnStartAiParse');
+            loading.classList.remove('hidden');
+            document.getElementById('aiRecognitionPreview').classList.add('hidden');
+            document.getElementById('btnConfirmAiImport').classList.add('hidden');
+            startButton.disabled = true;
+
+            try {
+                let combinedText = manualText;
+                if (!combinedText) {
+                    const extracted = [];
+                    for (let index = 0; index < selectedAiFiles.length; index++) {
+                        const file = selectedAiFiles[index];
+                        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+                            extracted.push(await extractPdfText(file, index, selectedAiFiles.length));
+                        } else {
+                            setAiProgress(`正在預處理圖片 ${index + 1}/${selectedAiFiles.length}：${file.name}`, 8 + index / selectedAiFiles.length * 75);
+                            const canvas = await preprocessImageFile(file);
+                            extracted.push(`【圖片 ${index + 1}】\n${await ocrImageSource(canvas, file.name)}`);
+                        }
+                    }
+                    combinedText = extracted.join('\n\n');
+                }
+                setAiProgress('正在辨識題號、選項與答案結構…', 94);
+                showAiRecognitionPreview(combinedText);
+                setAiProgress('辨識完成，請校對預覽結果', 100);
+            } catch (error) {
+                console.error('智慧辨識失敗：', error);
+                alert(`辨識失敗：${error.message || '請確認檔案格式與網路連線後重試。'}`);
+            } finally {
+                loading.classList.add('hidden');
+                startButton.disabled = false;
+                if (aiOcrWorker) {
+                    try { await aiOcrWorker.terminate(); } catch (e) {}
+                    aiOcrWorker = null;
+                }
+            }
+        }
+
+        function detectAiQuizTitle() {
+            if (selectedAiFiles.length) return selectedAiFiles[0].name.replace(/\.[^/.]+$/, '');
+            const firstLine = aiRecognizedText.split('\n').find(line => line.trim() && !/^(?:第\s*)?\d{1,3}\s*(?:題)?\s*[.．、:：]/.test(line));
+            return firstLine && firstLine.length <= 60 ? firstLine.trim() : '貼上文字考卷';
+        }
+
+        function confirmAiImport() {
+            if (!aiParsedQuestions.length) return;
+            const missingAnswers = aiParsedQuestions.filter(question => !question.correctAnswers.length).length;
+            if (missingAnswers && !confirm(`有 ${missingAnswers} 題尚未辨識到正確答案，仍要匯入並前往編輯器補上嗎？`)) return;
+
+            const newQuizId = `quiz_ai_${Date.now()}`;
+            const importedQuiz = {
+                id: newQuizId,
+                grade: activeAdminTab,
+                title: `【智慧匯入】${detectAiQuizTitle()}`,
+                desc: '由 PDF 文字層／OCR 智慧切題建立；請在發布前檢查題目、選項、答案、配分與圖片。',
+                instructions: '【測驗叮嚀】\n1. 請詳細閱讀題意後作答。\n2. 作答完成後請再次檢查答案。',
+                timerMode: 'countup',
+                countdownMinutes: 15,
+                shuffleQuestions: false,
+                shuffleOptions: false,
+                skillDimensions: ['智慧匯入'],
+                questions: aiParsedQuestions.map((question, index) => ({ ...question, id: Date.now() + index + 1 }))
+            };
+            allQuizzes.push(importedQuiz);
+            saveQuizzesToStorage();
+            activeAdminSection = 'quizzes';
+            closeAiImportModal();
+            renderDashboard();
+            alert(`已匯入 ${importedQuiz.questions.length} 題。請在發布前檢查答案、配分與含圖題目。`);
+            openQuizEditor(newQuizId);
+        }
+
+        function setupAiImportDropZone() {
+            const zone = document.getElementById('dropZone');
+            if (!zone || zone.dataset.ready === '1') return;
+            zone.dataset.ready = '1';
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => zone.addEventListener(eventName, event => { event.preventDefault(); event.stopPropagation(); }));
+            ['dragenter', 'dragover'].forEach(eventName => zone.addEventListener(eventName, () => zone.classList.add('ring-4', 'ring-purple-200')));
+            ['dragleave', 'drop'].forEach(eventName => zone.addEventListener(eventName, () => zone.classList.remove('ring-4', 'ring-purple-200')));
+            zone.addEventListener('drop', event => setAiSelectedFiles(Array.from(event.dataTransfer.files || [])));
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupAiImportDropZone);
+        else setupAiImportDropZone();
     </script>
 
     <!-- 老師管理後台暗門密碼彈窗 (自訂彈窗，避免手機瀏覽器阻擋 prompt) -->
